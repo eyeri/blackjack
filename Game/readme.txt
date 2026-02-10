@@ -31,3 +31,9 @@ Use `tests_manual.py` or import the engine modules for testing.
 - Do not modify function signatures without team discussion
 - Core logic changes should be discussed before merging
 - Use feature branches for development
+
+## Setup
+
+git clone https://github.com/eyeri/blackjack.git
+cd blackjack
+python -m pip install -r requirements.txt
