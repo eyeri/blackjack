@@ -1,0 +1,131 @@
+==================================================
+Milestone 2 – Development Environment Setup Guide
+(IMPORTANT – PLEASE READ)
+==================================================
+
+To ensure smooth collaboration, all team members MUST use
+the same development environment.
+
+This project is based on an intentionally scoped skeleton.
+If your environment differs, code review and merging will
+become difficult.
+
+Please follow ALL steps below in order.
+
+--------------------------------------------------
+1. Python Version
+--------------------------------------------------
+Recommended: Python 3.10 or higher
+
+Check your version:
+    python --version
+or
+    python3 --version
+
+WARNING:
+Python 3.8 or lower may cause issues with Django
+and some language features used in this project.
+
+--------------------------------------------------
+2. Create a Virtual Environment (REQUIRED)
+--------------------------------------------------
+Run the following commands in the project root directory.
+
+Windows:
+    python -m venv venv
+    venv\Scripts\activate
+
+macOS / Linux:
+    python3 -m venv venv
+    source venv/bin/activate
+
+If activated correctly, you should see:
+    (venv) in your terminal prompt.
+
+--------------------------------------------------
+3. Install Required Packages
+--------------------------------------------------
+After activating the virtual environment, run:
+
+    pip install -r requirements.txt
+
+If no errors occur, the setup is complete.
+
+--------------------------------------------------
+4. Verify Project Structure (IMPORTANT)
+--------------------------------------------------
+Make sure the following structure exists EXACTLY:
+
+blackjack/
+ └─ Game/
+    ├─ card.py
+    ├─ deck.py
+    ├─ hand.py
+    ├─ engine.py
+    ├─ engine_api.py
+    ├─ urls.py
+    ├─ views.py
+
+DO NOT:
+- Rename files
+- Move files
+- Change directory structure
+
+These files are directly tied to Milestone 2 evaluation.
+
+--------------------------------------------------
+5. Milestone 2 Scope Clarification
+--------------------------------------------------
+At this stage:
+- The UI is intentionally a placeholder
+- Some functions contain TODO comments only
+
+This is EXPECTED behavior.
+
+IMPORTANT:
+The TODO comments define the required work.
+Do NOT implement additional features or modify structure.
+
+--------------------------------------------------
+6. Work Rules (MANDATORY)
+--------------------------------------------------
+Before starting any work, always run:
+    git pull origin main
+
+While working:
+- Implement ONLY functions marked with TODO
+- Follow the TODO instructions exactly
+- Do NOT add new features (Milestone 3+ only)
+
+--------------------------------------------------
+7. When Problems Occur
+--------------------------------------------------
+When reporting an issue, include:
+- The exact error message
+- Which step caused the error
+- Your OS and Python version
+
+Avoid vague messages like:
+    "It doesn't work"
+
+Use clear messages like:
+    "Error occurs during pip install on Windows with Python 3.11"
+
+--------------------------------------------------
+SUMMARY
+--------------------------------------------------
+- Same Python version
+- Same virtual environment
+- Same requirements.txt
+- Same skeleton baseline
+
+Following these rules prevents most integration problems.
+
+--------------------------------------------------
+FINAL NOTE
+--------------------------------------------------
+This is a skeleton-based team project.
+Environment consistency is REQUIRED.
+
+Please complete this setup BEFORE starting development.
+==================================================
