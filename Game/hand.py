@@ -15,7 +15,7 @@ class Hand:
 
     def codes(self) -> List[str]:
         """Return list of card codes for display/debug."""
-        # TODO (Member B): Return [c.code() for c in self.cards] in current order (stable for debug).
+        # TODO (Member B): Return [c.code() for c in self.cards] in current order (stable for debug). test edit
     pass
 
     def best_total(self) -> int:
