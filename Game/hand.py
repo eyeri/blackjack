@@ -50,8 +50,7 @@ class Hand:
     def is_blackjack(self) -> bool:
         """True if exactly 2 cards and best_total() == 21."""
         # TODO (Member B): True only if exactly 2 cards AND best_total()==21.
-        """ A blackjack only occurs when the base total is equal to 21, the two cards do not determine a blackjack - jas"""
-        return True if (self.base_total() == 21) else False
+        return True if ((self.base_total() == 21) and (len(self.cards) == 2)) else False
 
 
     def is_bust(self) -> bool:
