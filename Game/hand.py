@@ -44,7 +44,7 @@ class Hand:
             if (card.rank == 'A'):
                 hasAce = True
 
-        return (total + 10) if (hasAce and (total + 10 < 21)) else total
+        return (total + 10) if (hasAce and (total + 10 <= 21)) else total
 
 
     def is_blackjack(self) -> bool:
