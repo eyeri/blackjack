@@ -8,7 +8,10 @@ class Hand:
         self.cards: List[Card] = []
 
     def add(self, newCard: Card) -> None:
-        self.cards.append(newCard)
+        if (isinstance(newCard, Card)):
+            self.cards.append(newCard)
+        else:
+            raise "Card Could Not Be Added!"
 
 
     def codes(self) -> List[str]:
