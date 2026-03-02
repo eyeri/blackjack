@@ -29,14 +29,14 @@ class GameEngine:
         self.outcome_text: str = ""  # "WIN" | "LOSE" | "PUSH"
 
     def new_round(self) -> None:
-        """
-        Reset everything and deal initial cards.
-        phase -> PLAYER_TURN
-        """
-        # TODO (Member C): Reset deck/player/dealer + clear message/outcome; then initial_deal().
+        self.deck = Deck(num_decks=1)
+        self.player = Hand()
+        self.dealer = Hand()
+        self.message = ""
+        self.outcome_text = ""
 
-        # TODO (Member C): phase must end as PLAYER_TURN (unless immediate resolve like blackjack).
-    pass
+        self.initial_deal()
+        self.phase = Phase.PLAYER_TURN
 
     def initial_deal(self) -> None:
         """Deal 2 cards to player and 2 cards to dealer."""
