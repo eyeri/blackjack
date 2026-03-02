@@ -7,11 +7,15 @@ class Hand:
     def __init__(self):
         self.cards: List[Card] = []
 
+
     def add(self, newCard: Card) -> None:
         if (isinstance(newCard, Card)):
             self.cards.append(newCard)
         else:
-            raise "Card Could Not Be Added!"
+            # FIXED: Python does not allow raising a string. 
+            # Changed to TypeError to ensure the program handles invalid inputs correctly.
+            raise TypeError("Card Could Not Be Added!")
+ 
 
 
     def codes(self) -> List[str]:
@@ -21,6 +25,7 @@ class Hand:
         for card in self.cards:
             cardCodes.append(card.code())
         return cardCodes
+    
 
 
     def base_total(self) -> int:
@@ -37,14 +42,20 @@ class Hand:
         # TODO (Member B): Implement Ace adjustment exactly as described in docstring (A starts at 11, then downgrade by -10).
         # TODO (Member B): Must handle multiple Aces correctly (e.g., A,A,9 -> 21).
 
-        hasAce: bool = False
+        # FIXED: Original logic only handled a single Ace.
+        # Added a loop to handle multiple Aces (e.g., A, A, 9) to correctly reach 21.
+        ace_count: int = 0
         total: int = 0
         for card in self.cards:
             total += card.base_value()
             if (card.rank == 'A'):
-                hasAce = True
+                ace_count += 1
 
-        return (total + 10) if (hasAce and (total + 10 <= 21)) else total
+        while total > 21 and ace_count > 0: 
+            total -= 10
+            ace_count -= 1
+        return total
+
 
 
     def is_blackjack(self) -> bool:
