@@ -34,16 +34,17 @@ class GameEngine:
         Reset everything and deal initial cards.
         phase -> PLAYER_TURN
         """
+        # Re-instantiate to ensure a fresh state and prevent data leakage from previous rounds.
         self.player.cards = []
         self.dealer.cards = []
         self.deck.shuffle()
-        self.outcome_text = ""
         self.initial_deal()
-        if self.player.is_blackjack() == True or self.dealer.is_blackjack != True:
+        self.outcome_text = ""
+        if self.player.is_blackjack() or self.dealer.is_blackjack():
             self.resolve_round()
         else:
             self.phase = Phase.PLAYER_TURN
-            self.message = "Player turn: HIT or STAND"
+            self.message = "Player turn: HIT or STAND."
             
         
         
@@ -54,7 +55,7 @@ class GameEngine:
         self.player.add(self.deck.draw())
         self.dealer.add(self.deck.draw())
         self.dealer.add(self.deck.draw())
-        self.phase = Phase.PLAYER_TURN
+        # [Fixed] since there is if-else in new_round, this is enough
         
 
     def can_hit(self) -> bool:
@@ -62,33 +63,41 @@ class GameEngine:
 
     def can_stand(self) -> bool:
         """Return True if STAND is allowed now."""
-        if self.phase == Phase.PLAYER_TURN and not self.player.is_bust():
-            return True
-        else:
-            return False
+        return self.phase == Phase.PLAYER_TURN and not self.player.is_bust()
+        # [Fixed] since there is if-else in new_round, this is enough
 
     def player_hit(self) -> None:
 
         """Player draws one card. If bust -> ROUND_OVER."""
         if not self.can_hit():
+            self.message = "Invalid action: HIT not allowed now." #text added
             return
         self.player.add(self.deck.draw())
         if self.player.is_bust():
+            self.outcome_text = "LOSE" # text added
             self.phase = Phase.ROUND_OVER
+            
+            # [Fixed] Added dynamic messages to provide immediate feedback on the player's total and next available actions.
+            self.message = f"Player busts with {self.player.base_total()}. LOSE."
+        else:
+            self.message = f"Player hits ({self.player.base_total()}). HIT or STAND?"
+
 
     def player_stand(self) -> None:
         """Switch to DEALER_TURN, run dealer, resolve, ROUND_OVER."""
         if not self.can_stand():
+            self.message = "Invalid action: STAND not allowed now." # text added
             return
         self.phase = Phase.DEALER_TURN
+        self.message = "Dealer turn" # text added
         self.run_dealer_turn()
         self.resolve_round()
-        self.phase = Phase.ROUND_OVER
+        # [Fixed] since there is if-else in new_round, this is enough
         
 
     def run_dealer_turn(self) -> None:
         """Dealer hits while dealer.best_total() < 17."""
-        while self.dealer.best_total() < 17:
+        while self.dealer.base_total() < 17:
             self.dealer.add(self.deck.draw())
         
 
@@ -101,6 +110,10 @@ class GameEngine:
         - compare totals -> win/lose/push
         - optional: blackjack checks
         """
+        # [Fixed] Defined here to prevent UnboundLocalError if player busts
+        player_total = self.player.base_total()
+        dealer_total = self.dealer.base_total()
+
         if self.player.is_bust():
             self.outcome_text = "LOSE"
 
@@ -108,37 +121,49 @@ class GameEngine:
         elif self.dealer.is_bust():
             self.outcome_text = "WIN"
         else:
-            player_total = self.player.best_total()
-            dealer_total = self.dealer.best_total()
             if player_total > dealer_total:
                 self.outcome_text = "WIN"
                 
             elif dealer_total > player_total:
                 self.outcome_text = "LOSE"
             else:
-                if self.player.is_blackjack == True and self.dealer.is_blackjack != True:
+                # [Fixed] Added () to correctly execute the method call
+                if self.player.is_blackjack() and not self.dealer.is_blackjack():
                     self.outcome_text = "WIN"
-                elif self.player.is_blackjack != True and self.dealer.is_blackjack == True:
+                elif not self.player.is_blackjack() and self.dealer.is_blackjack():
                     self.outcome_text = "LOSE"
                 else:
                     self.outcome_text = "PUSH"
         self.message = f"Player {player_total} vs Dealer {dealer_total} {self.outcome_text}"
-        
+        self.phase = Phase.ROUND_OVER # [Fixed] Ensure the game state transitions to finished
 
-    def state_snapshot(self, hide_dealer_hole: bool = True) -> Dict[str, Any]:
-        """
-        Return dict for printing/debugging (no UI code):
-        - phase, message, outcome_text
-        - player_cards, dealer_cards (optionally hide dealer first card)
-        - player_total, dealer_total (optional hidden)
-        - deck_remaining
-        """
+    def state_snapshot(self, hide_dealer_hole: bool = True) -> dict:
+    # Hiding dealer's first card during player turn to maintain game integrity.
+
+
+    # Fallback logic for deck count to prevent AttributeError.
+    
+
+    # Returning string codes instead of objects for easier debugging.
+        if hide_dealer_hole == True and self.phase == Phase.PLAYER_TURN:
+            dealer_cards = ["hidden"] + [c.code() for c in self.dealer.cards[1:]]
+            dealer_total = "hidden"
+        else:
+            dealer_cards = self.dealer.cards.codes()
+            dealer_total = self.dealer.base_total()
+
+        if hasattr(self.deck, "cards"):
+            deck_remaining = len(self.deck.cards)
+        else:
+            deck_remaining = 0
         return {
             "phase": self.phase.name,
             "outcome_text": self.outcome_text,
+            "player_cards": self.player.cards.codes(),
+            "dealer_cards": dealer_cards,
             "player_total": self.player.base_total(),
-            "dealer_total": self.dealer.base_total(),
-            "deck_remaining": len(self.deck.cards)
+            "dealer_total": dealer_total,
+            "deck_remaining": deck_remaining
 
         }
         
