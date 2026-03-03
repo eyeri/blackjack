@@ -1,4 +1,5 @@
 from __future__ import annotations
+from cmath import phase
 from enum import Enum, auto
 from typing import Dict, Any, Optional
 
@@ -29,44 +30,67 @@ class GameEngine:
         self.outcome_text: str = ""  # "WIN" | "LOSE" | "PUSH"
 
     def new_round(self) -> None:
-        self.deck = Deck(num_decks=1)
-        self.player = Hand()
-        self.dealer = Hand()
-        self.message = ""
+        """
+        Reset everything and deal initial cards.
+        phase -> PLAYER_TURN
+        """
+        self.player.cards = []
+        self.dealer.cards = []
+        self.deck.shuffle()
         self.outcome_text = ""
-
         self.initial_deal()
-        self.phase = Phase.PLAYER_TURN
+        if self.player.is_blackjack() == True or self.dealer.is_blackjack != True:
+            self.resolve_round()
+        else:
+            self.phase = Phase.PLAYER_TURN
+            self.message = "Player turn: HIT or STAND"
+            
+        
+        
 
     def initial_deal(self) -> None:
         """Deal 2 cards to player and 2 cards to dealer."""
-        # TODO (Member C): Deal 2 cards each (player, dealer, player, dealer) using deck.draw().
-    pass 
+        self.player.add(self.deck.draw())
+        self.player.add(self.deck.draw())
+        self.dealer.add(self.deck.draw())
+        self.dealer.add(self.deck.draw())
+        self.phase = Phase.PLAYER_TURN
+        
 
     def can_hit(self) -> bool:
-        """Return True if HIT is allowed now."""
-        # TODO (Member C): Return True only during PLAYER_TURN and round not over.
-    pass
+        return self.phase == Phase.PLAYER_TURN and not self.player.is_bust()
 
     def can_stand(self) -> bool:
         """Return True if STAND is allowed now."""
-        # TODO (Member C): Return True only during PLAYER_TURN and round not over.
-    pass 
+        if self.phase == Phase.PLAYER_TURN and not self.player.is_bust():
+            return True
+        else:
+            return False
 
     def player_hit(self) -> None:
+
         """Player draws one card. If bust -> ROUND_OVER."""
-        # TODO (Member C): If can_hit, draw one card; if player busts -> outcome=LOSE and phase=ROUND_OVER.
-    pass 
+        if not self.can_hit():
+            return
+        self.player.add(self.deck.draw())
+        if self.player.is_bust():
+            self.phase = Phase.ROUND_OVER
 
     def player_stand(self) -> None:
         """Switch to DEALER_TURN, run dealer, resolve, ROUND_OVER."""
-        # TODO (Member C): Switch to DEALER_TURN, run_dealer_turn(), then resolve_round() and set ROUND_OVER.
-    pass 
+        if not self.can_stand():
+            return
+        self.phase = Phase.DEALER_TURN
+        self.run_dealer_turn()
+        self.resolve_round()
+        self.phase = Phase.ROUND_OVER
+        
 
     def run_dealer_turn(self) -> None:
         """Dealer hits while dealer.best_total() < 17."""
-        # TODO (Member C): Dealer hits while dealer.best_total() < 17 (S17 rule).
-    pass
+        while self.dealer.best_total() < 17:
+            self.dealer.add(self.deck.draw())
+        
 
     def resolve_round(self) -> None:
         """
@@ -77,8 +101,29 @@ class GameEngine:
         - compare totals -> win/lose/push
         - optional: blackjack checks
         """
-        # TODO (Member C): (Milestone 2) You may ignore blackjack priority if not required; document limitation in milestone report.
-    pass
+        if self.player.is_bust():
+            self.outcome_text = "LOSE"
+
+
+        elif self.dealer.is_bust():
+            self.outcome_text = "WIN"
+        else:
+            player_total = self.player.best_total()
+            dealer_total = self.dealer.best_total()
+            if player_total > dealer_total:
+                self.outcome_text = "WIN"
+                
+            elif dealer_total > player_total:
+                self.outcome_text = "LOSE"
+            else:
+                if self.player.is_blackjack == True and self.dealer.is_blackjack != True:
+                    self.outcome_text = "WIN"
+                elif self.player.is_blackjack != True and self.dealer.is_blackjack == True:
+                    self.outcome_text = "LOSE"
+                else:
+                    self.outcome_text = "PUSH"
+        self.message = f"Player {player_total} vs Dealer {dealer_total} {self.outcome_text}"
+        
 
     def state_snapshot(self, hide_dealer_hole: bool = True) -> Dict[str, Any]:
         """
@@ -88,14 +133,17 @@ class GameEngine:
         - player_total, dealer_total (optional hidden)
         - deck_remaining
         """
-        # TODO (Member C): Return a dict with stable keys: phase, message, outcome_text, player_cards, dealer_cards, totals, deck_remaining.
+        return {
+            "phase": self.phase.name,
+            "outcome_text": self.outcome_text,
+            "player_total": self.player.base_total(),
+            "dealer_total": self.dealer.base_total(),
+            "deck_remaining": len(self.deck.cards)
 
-        # TODO (Member C): If hide_dealer_hole and phase==PLAYER_TURN, replace dealer first card with "??" and hide dealer_total (None).
-    pass
+        }
+        
 
 #Advanced Rule Extension
-# TODO (Milestone 3+ only): Advanced actions (DOUBLE / SPLIT). Do NOT implement for Milestone 2 submission.
-# TODO (Member C): Implement only after core loop (NEW/HIT/STAND/RESOLVE) is stable and tested.
 
     def can_double_down(self) -> bool:
         """
@@ -105,7 +153,7 @@ class GameEngine:
         - exactly 2 cards in player hand
         """
         # TODO (Member C): implement 
-    pass
+        raise NotImplementedError
 
     def can_split(self) -> bool:
         """
@@ -115,7 +163,7 @@ class GameEngine:
         - both cards have same rank
         """
         # TODO (Member C): implement 
-    pass
+        raise NotImplementedError
 
     def player_double_down(self) -> None:
         """
@@ -123,11 +171,12 @@ class GameEngine:
         and then automatically stands.
         """
         # TODO (Member C): implement 
-    pass 
+        raise NotImplementedError
 
     def player_split(self) -> None:
         """
         Split the initial hand into two hands.
         """
         # TODO (Member C): implement 
-    pass 
+        raise NotImplementedError
+
