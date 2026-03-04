@@ -1,6 +1,6 @@
 import pytest
-from card import Card
-from hand import Hand
+from .card import Card
+from .hand import Hand
 
 def test_ace_handling():
     hand = Hand()
