@@ -1,15 +1,4 @@
+Blackjack(environment)/
 __pycache__/
 *.pyc
-
-# Virtual environments
-env/
-venv/
-.venv/
-*environment*/
-
-# VS Code
-.vscode/
-
-# OS files
-.DS_Store
-Thumbs.db
+db.sqlite3

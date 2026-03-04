@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
 from typing import List
-from card import Card
+from .card import Card
 
 
 class Deck:

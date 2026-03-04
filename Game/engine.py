@@ -3,8 +3,9 @@ from cmath import phase
 from enum import Enum, auto
 from typing import Dict, Any, Optional
 
-from deck import Deck
-from hand import Hand
+from .deck import Deck
+from .hand import Hand
+from .card import Card
 
 
 class Phase(Enum):

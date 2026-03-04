@@ -6,9 +6,11 @@ This file will handle UI requests and delegate
 game logic processing to engine_api.py.
 """
 
-from django.shortcuts import render
+from django.contrib import admin
+from django.urls import path, include
 from django.http import JsonResponse
-from .engine_api import GameEngine, get_view_state
+from .engine import GameEngine
+from .engine_api import get_view_state
 
 def index(request):
     """
