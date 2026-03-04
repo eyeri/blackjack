@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blackjack Logic Check</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #2d5a27;
+            font-family: 'Courier New', Courier, monospace;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 50px;
+        }
+
+        .info-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid white;
+            width: 80%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .card-display {
+            font-size: 1.5rem;
+            margin: 10px 0;
+        }
+
+        .suit {
+            font-size: 2rem;
+            margin-right: 10px;
+        }
+
+        /* 문양별 색상 */
+        .hearts, .diamonds { color: #ff4d4d; }
+        .spades, .clubs { color: #ffffff; }
+
+        .btn-group {
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 10px 30px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            background: white;
+            border: none;
+            margin: 0 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Blackjack Status Check</h1>
+
+    <div class="info-box">
+        <h3>Dealer Hand</h3>
+        <div class="card-display">
+            <span class="suit spades">♠</span> Hidden Card
+        </div>
+        <div class="card-display">
+            <span class="suit hearts">♥</span> 10 of Hearts
+        </div>
+    </div>
+
+    <div class="info-box">
+        <h3>Your Hand (Playing Now)</h3>
+        <div class="card-display">
+            <span class="suit diamonds">♦</span> 7 of Diamonds
+        </div>
+        <div class="card-display">
+            <span class="suit clubs">♣</span> 8 of Clubs
+        </div>
+        <p><strong>Current Total: 15</strong></p>
+    </div>
+
+    <div class="info-box" style="font-size: 0.9rem; border-style: dashed;">
+        <p>> Initial cards dealt.</p>
+        <p>> Waiting for player action...</p>
+    </div>
+
+    <div class="btn-group">
+        <button onclick="alert('Hit action sent')">HIT</button>
+        <button onclick="alert('Stand action sent')">STAND</button>
+    </div>
+
+</body>
+</html>
