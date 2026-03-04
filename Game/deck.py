@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
 from typing import List
-from card import Card
+from .card import Card
 
 
 class Deck:
@@ -22,7 +22,7 @@ class Deck:
         for _ in range(num_decks):
             for suit in self.SUITS:
                 for rank in self.RANKS:
-                    self.cards.append(Card(rank, suit))
+                    self.cards.append(Card(rank=rank, suit=suit)) # [Fixed] Using keyword arguments for better readability when instantiating Card.
 
         # Shuffle exactly once
         self.shuffle()
