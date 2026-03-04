@@ -26,4 +26,5 @@ class Card:
             return 11
         if self.rank in ["J", "Q", "K"]:
             return 10
+        if self.rank == "?": return 0 # deffence logic added
         return int(self.rank)

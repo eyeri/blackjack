@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blackjack</title>
+    <style>
+        body { margin: 0; background-color: #2d5a27; font-family: 'Courier New', Courier, monospace; color: white; display: flex; flex-direction: column; align-items: center; padding-top: 30px; }
+        .info-box { background: rgba(0, 0, 0, 0.3); padding: 20px; border-radius: 10px; border: 2px solid white; width: 80%; max-width: 600px; margin-bottom: 15px; }
+        .card-display { font-size: 1.3rem; margin: 8px 0; }
+        .suit { font-size: 1.8rem; margin-right: 10px; }
+        .hearts, .diamonds { color: #ff4d4d; }
+        .spades, .clubs { color: #ffffff; }
+        .btn-group { margin-top: 20px; display: flex; justify-content: center; }
+        button { padding: 12px 25px; font-size: 1rem; cursor: pointer; background: white; border: none; margin: 0 10px; font-weight: bold; }
+        .btn-disabled { background: #555 !important; color: #888 !important; cursor: not-allowed; opacity: 0.6; }
+        .outcome { font-size: 2rem; color: #ffecb3; text-align: center; font-weight: bold; margin: 10px 0; }
+        .start-wrap { width: 80%; max-width: 600px; text-align: center; }
+        .start-title { font-size: 2.2rem; margin: 20px 0 10px; }
+        .start-sub { opacity: 0.9; margin: 0 0 20px; }
+        .start-btn { padding: 14px 30px; font-size: 1.1rem; }
+        .hint { opacity: 0.85; margin-top: 12px; font-size: 0.95rem; }
+    </style>
+</head>
+<body>
+
+    <h1>Blackjack</h1>
+
+    {% if not started %}
+        <div class="start-wrap info-box">
+            <div class="start-title">Start Screen</div>
+            <div class="start-sub">Press Start Game to begin. After one HIT or STAND, buttons will lock. Reset only by F5.</div>
+
+            <form method="post" class="btn-group">
+                {% csrf_token %}
+                <button class="start-btn" type="submit" name="action" value="start">START GAME</button>
+            </form>
+
+            <div class="hint">Reset method: F5 (page refresh)</div>
+        </div>
+    {% else %}
+
+        <div class="info-box">
+            <h3>Dealer Hand</h3>
+            {% for code in state.dealer_cards %}
+                <div class="card-display">
+                    {% if code == "??" %}
+                        <span class="suit">🂠</span> [Hidden Card]
+                    {% else %}
+                        <span class="suit {% if 'H' in code or 'D' in code %}hearts{% else %}spades{% endif %}">
+                            {% if 'S' in code %}♠{% elif 'H' in code %}♥{% elif 'D' in code %}♦{% elif 'C' in code %}♣{% endif %}
+                        </span>
+                        {% with rank=code|slice:":-1" suit_char=code|slice:"-1:" %}
+                            {% if rank == "A" %}Ace{% elif rank == "J" %}Jack{% elif rank == "Q" %}Queen{% elif rank == "K" %}King{% else %}{{ rank }}{% endif %}
+                            of
+                            {% if suit_char == "S" %}Spades{% elif suit_char == "H" %}Hearts{% elif suit_char == "D" %}Diamonds{% elif suit_char == "C" %}Clubs{% endif %}
+                        {% endwith %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <p>Dealer Total: {% if state.dealer_total is None %}?{% else %}{{ state.dealer_total }}{% endif %}</p>
+        </div>
+
+        <div class="info-box">
+            <h3>Your Hand</h3>
+            {% for code in state.player_cards %}
+                <div class="card-display">
+                    <span class="suit {% if 'H' in code or 'D' in code %}hearts{% else %}spades{% endif %}">
+                        {% if 'S' in code %}♠{% elif 'H' in code %}♥{% elif 'D' in code %}♦{% elif 'C' in code %}♣{% endif %}
+                    </span>
+                    {% with rank=code|slice:":-1" suit_char=code|slice:"-1:" %}
+                        {% if rank == "A" %}Ace{% elif rank == "J" %}Jack{% elif rank == "Q" %}Queen{% elif rank == "K" %}King{% else %}{{ rank }}{% endif %}
+                        of
+                        {% if suit_char == "S" %}Spades{% elif suit_char == "H" %}Hearts{% elif suit_char == "D" %}Diamonds{% elif suit_char == "C" %}Clubs{% endif %}
+                    {% endwith %}
+                </div>
+            {% endfor %}
+            <p><strong>Player Total: {{ state.player_total }}</strong></p>
+        </div>
+
+        <div class="info-box" style="border-style: dashed;">
+            <p>> {{ message }}</p>
+            {% if locked %}
+                <p style="color: #ffecb3;">[LOCKED] Buttons disabled. Press F5 to reset.</p>
+            {% else %}
+                <p style="color: #ffecb3;">One action only: HIT or STAND.</p>
+            {% endif %}
+        </div>
+
+        <form method="post" class="btn-group">
+            {% csrf_token %}
+            {% if locked %}
+                <button type="button" class="btn-disabled" disabled>HIT</button>
+                <button type="button" class="btn-disabled" disabled>STAND</button>
+            {% else %}
+                <button type="submit" name="action" value="hit">HIT</button>
+                <button type="submit" name="action" value="stand">STAND</button>
+            {% endif %}
+        </form>
+
+    {% endif %}
+
+</body>
+</html>
