@@ -22,11 +22,7 @@ class Deck:
         for _ in range(num_decks):
             for suit in self.SUITS:
                 for rank in self.RANKS:
-<<<<<<< HEAD
                     self.cards.append(Card(rank=rank, suit=suit)) # [Fixed] Using keyword arguments for better readability when instantiating Card.
-=======
-                    self.cards.append(Card(rank, suit))
->>>>>>> b6b85163cf61e65d34e674f1418c036777775737
 
         # Shuffle exactly once
         self.shuffle()
