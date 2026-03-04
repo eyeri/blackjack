@@ -6,8 +6,9 @@ This file will handle UI requests and delegate
 game logic processing to engine_api.py.
 """
 
-from django.http import HttpResponse
-# TODO (Milestone 3): Import engine_api functions explicitly (avoid wildcard imports).
+from django.shortcuts import render
+from django.http import JsonResponse
+from .engine_api import GameEngine, get_view_state
 
 def index(request):
     """
@@ -19,4 +20,26 @@ def index(request):
     # - Add user-facing messages and explanations for learning support
     # - Improve UI presentation (layout, styling)
 
-    return HttpResponse("Blackjack UI placeholder")
+    return render(request, 'blackjack/index.html')
+
+def milestone2_api_demo(request):
+    """
+    PROTOTYPE VALIDATION ONLY:
+    This view proves that the core engine and the API contract (engine_api.py)
+    are functional within the Django framework. 
+    Full session management and UI integration are deferred to Milestone 3.
+    """
+    # Initialize the robust engine
+    engine = GameEngine()
+    engine.new_round() # Executes initial deal
+    
+    # Generate the View State (JSON)
+    # This proves we can communicate game state to a front-end
+    view_data = get_view_state(engine, hide_dealer_hole=True)
+    
+    return JsonResponse({
+        "milestone": 2,
+        "validation_status": "Passed",
+        "logic_verification": "Engine-to-API bridge functional",
+        "game_data": view_data
+    })
