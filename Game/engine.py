@@ -3,8 +3,9 @@ from cmath import phase
 from enum import Enum, auto
 from typing import Dict, Any, Optional
 
-from deck import Deck
-from hand import Hand
+from .deck import Deck
+from .hand import Hand
+from .card import Card
 
 
 class Phase(Enum):
@@ -34,12 +35,17 @@ class GameEngine:
         Reset everything and deal initial cards.
         phase -> PLAYER_TURN
         """
-        # Re-instantiate to ensure a fresh state and prevent data leakage from previous rounds.
-        self.player.cards = []
-        self.dealer.cards = []
-        self.deck.shuffle()
-        self.initial_deal()
+        # [Fixed] Re-instantiate to ensure a fresh state and prevent data leakage from previous rounds.
+        self.deck = Deck(num_decks=1)
+        self.player = Hand()
+        self.dealer = Hand()
+        
+        self.message = ""
         self.outcome_text = ""
+        self.phase = Phase.INIT
+
+        self.initial_deal()
+
         if self.player.is_blackjack() or self.dealer.is_blackjack():
             self.resolve_round()
         else:
@@ -51,9 +57,10 @@ class GameEngine:
 
     def initial_deal(self) -> None:
         """Deal 2 cards to player and 2 cards to dealer."""
-        self.player.add(self.deck.draw())
+        # [Fix #1] Standard order: Player, Dealer, Player, Dealer
         self.player.add(self.deck.draw())
         self.dealer.add(self.deck.draw())
+        self.player.add(self.deck.draw())
         self.dealer.add(self.deck.draw())
         # [Fixed] since there is if-else in new_round, this is enough
         
@@ -78,9 +85,9 @@ class GameEngine:
             self.phase = Phase.ROUND_OVER
             
             # [Fixed] Added dynamic messages to provide immediate feedback on the player's total and next available actions.
-            self.message = f"Player busts with {self.player.base_total()}. LOSE."
+            self.message = f"Player busts with {self.player.best_total()}. LOSE."
         else:
-            self.message = f"Player hits ({self.player.base_total()}). HIT or STAND?"
+            self.message = f"Player hits ({self.player.best_total()}). HIT or STAND?"
 
 
     def player_stand(self) -> None:
@@ -97,7 +104,7 @@ class GameEngine:
 
     def run_dealer_turn(self) -> None:
         """Dealer hits while dealer.best_total() < 17."""
-        while self.dealer.base_total() < 17:
+        while self.dealer.best_total() < 17:
             self.dealer.add(self.deck.draw())
         
 
@@ -110,65 +117,71 @@ class GameEngine:
         - compare totals -> win/lose/push
         - optional: blackjack checks
         """
-        # [Fixed] Defined here to prevent UnboundLocalError if player busts
-        player_total = self.player.base_total()
-        dealer_total = self.dealer.base_total()
 
-        if self.player.is_bust():
+        
+        # [Fixed] Defined here to prevent UnboundLocalError if player busts
+        player_total = self.player.best_total()
+        dealer_total = self.dealer.best_total()
+
+        # [Fix #2] Blackjack priority FIRST (natural blackjack beats non-blackjack 21)
+        if self.player.is_blackjack() and self.dealer.is_blackjack():
+            self.outcome_text = "PUSH"
+        elif self.player.is_blackjack():
+            self.outcome_text = "WIN"
+        elif self.dealer.is_blackjack():
             self.outcome_text = "LOSE"
 
-
+        # Bust checks
+        elif self.player.is_bust():
+            self.outcome_text = "LOSE"
         elif self.dealer.is_bust():
             self.outcome_text = "WIN"
+
+        # Compare totals
         else:
             if player_total > dealer_total:
                 self.outcome_text = "WIN"
-                
             elif dealer_total > player_total:
                 self.outcome_text = "LOSE"
             else:
-                # [Fixed] Added () to correctly execute the method call
-                if self.player.is_blackjack() and not self.dealer.is_blackjack():
-                    self.outcome_text = "WIN"
-                elif not self.player.is_blackjack() and self.dealer.is_blackjack():
-                    self.outcome_text = "LOSE"
-                else:
-                    self.outcome_text = "PUSH"
+                self.outcome_text = "PUSH"
         self.message = f"Player {player_total} vs Dealer {dealer_total} {self.outcome_text}"
         self.phase = Phase.ROUND_OVER # [Fixed] Ensure the game state transitions to finished
 
+
     def state_snapshot(self, hide_dealer_hole: bool = True) -> dict:
-    # Hiding dealer's first card during player turn to maintain game integrity.
+        # [Fix #3] Hole card hiding should keep types consistent:
+        # - hide first dealer card as "??"
+        # - dealer_total should be None while hidden (not a string)
+        dealer_codes = self.dealer.codes()
+        dealer_total: Optional[int] = self.dealer.best_total()
 
-
-    # Fallback logic for deck count to prevent AttributeError.
-    
-
-    # Returning string codes instead of objects for easier debugging.
-        if hide_dealer_hole == True and self.phase == Phase.PLAYER_TURN:
-            dealer_cards = ["hidden"] + [c.code() for c in self.dealer.cards[1:]]
-            dealer_total = "hidden"
+        if hide_dealer_hole and self.phase == Phase.PLAYER_TURN and len(dealer_codes) > 0:
+            dealer_cards = ["??"] + dealer_codes[1:]
+            dealer_total = None
         else:
-            dealer_cards = self.dealer.cards.codes()
-            dealer_total = self.dealer.base_total()
+            dealer_cards = dealer_codes
 
-        if hasattr(self.deck, "cards"):
+        # [Fixed] Fallback logic for deck count
+        if hasattr(self.deck, "remaining"): # Try specific method first
+            deck_remaining = self.deck.remaining()
+        elif hasattr(self.deck, "cards"):
             deck_remaining = len(self.deck.cards)
         else:
             deck_remaining = 0
+
         return {
             "phase": self.phase.name,
             "outcome_text": self.outcome_text,
-            "player_cards": self.player.cards.codes(),
+            "player_cards": self.player.codes(), # Fixed: call codes() on Hand
             "dealer_cards": dealer_cards,
-            "player_total": self.player.base_total(),
+            "player_total": self.player.best_total(),
             "dealer_total": dealer_total,
             "deck_remaining": deck_remaining
-
         }
-        
+    
 
-#Advanced Rule Extension
+    #Advanced Rule Extension
 
     def can_double_down(self) -> bool:
         """
@@ -204,4 +217,3 @@ class GameEngine:
         """
         # TODO (Member C): implement 
         raise NotImplementedError
-
