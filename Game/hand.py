@@ -28,7 +28,7 @@ class Hand:
     
 
 
-    def base_total(self) -> int:
+    def best_total(self) -> int:
         """
         Standard Ace handling:
         1) Sum base_value() for all cards (A counts as 11)
@@ -61,10 +61,10 @@ class Hand:
     def is_blackjack(self) -> bool:
         """True if exactly 2 cards and best_total() == 21."""
         # TODO (Member B): True only if exactly 2 cards AND best_total()==21.
-        return True if ((self.base_total() == 21) and (len(self.cards) == 2)) else False
+        return True if ((self.best_total() == 21) and (len(self.cards) == 2)) else False
 
 
     def is_bust(self) -> bool:
         """True if best_total() > 21."""
         # TODO (Member B): True if best_total() > 21.
-        return True if (self.base_total() > 21) else False
+        return True if (self.best_total() > 21) else False
