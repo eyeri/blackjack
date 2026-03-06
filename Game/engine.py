@@ -183,9 +183,6 @@ class GameEngine:
 
     #Advanced Rule Extension
 
-    def restore_state(self, state: dict):
-        raise NotImplementedError
-
     def can_double_down(self) -> bool:
         """
         Return True if DOUBLE DOWN is allowed now.

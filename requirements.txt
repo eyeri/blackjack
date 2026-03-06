@@ -1,0 +1,10 @@
+asgiref==3.11.1
+colorama==0.4.6
+Django==6.0.2
+iniconfig==2.3.0
+packaging==26.0
+pluggy==1.6.0
+Pygments==2.19.2
+pytest==9.0.2
+sqlparse==0.5.5
+tzdata==2025.3
