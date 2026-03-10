@@ -1,3 +1,21 @@
+<!-- ===================== CHANGES (Milestone 2 -> Game-focused Milestone 3) =====================
+1) Removed prototype-only UI rules:
+   - Delete: "One action only", "[LOCKED] press F5 to reset" text
+   - Delete: conditional rendering based on "locked" session flag
+
+2) Button set updated to support real gameplay loop:
+   - BEFORE: START + (HIT or STAND only once)
+   - AFTER : START + HIT + STAND + NEW (repeatable actions across requests)
+
+3) Action values standardized:
+   - BEFORE: action="start" / "hit" / "stand"
+   - AFTER : action="START" / "HIT" / "STAND" / "NEW" (or consistent casing)
+
+4) Button enable/disable is driven by state.buttons from engine_api.get_view_state:
+   - UI does NOT decide rules.
+   - UI only reflects engine_api's button permissions (derived from engine.phase).
+============================================================================================= -->
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
