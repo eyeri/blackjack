@@ -2,3 +2,4 @@ Blackjack(environment)/
 __pycache__/
 *.pyc
 db.sqlite3
+/venv
