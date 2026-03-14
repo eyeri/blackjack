@@ -380,13 +380,15 @@
 
     <!-- Outcome banner -->
     {% if state.outcome %}
-        {% if "win" in state.outcome|lower or "blackjack" in state.outcome|lower %}
-            <div class="outcome-banner outcome-win">🏆 {{ state.outcome }}</div>
-        {% elif "bust" in state.outcome|lower or "lose" in state.outcome|lower or "dealer" in state.outcome|lower %}
-            <div class="outcome-banner outcome-lose">💔 {{ state.outcome }}</div>
-        {% else %}
-            <div class="outcome-banner outcome-push">🤝 {{ state.outcome }}</div>
-        {% endif %}
+        {% with outcome_lower=state.outcome|lower %}
+            {% if "win" in outcome_lower or "blackjack" in outcome_lower %}
+                <div class="outcome-banner outcome-win">🏆 {{ state.outcome }}</div>
+            {% elif "bust" in outcome_lower or "lose" in outcome_lower or "dealer" in outcome_lower %}
+                <div class="outcome-banner outcome-lose">💔 {{ state.outcome }}</div>
+            {% else %}
+                <div class="outcome-banner outcome-push">🤝 {{ state.outcome }}</div>
+            {% endif %}
+        {% endwith %}
     {% endif %}
 
     <!-- Dealer zone -->
@@ -395,7 +397,7 @@
     {% if state.dealer_total is not None %}
         <div class="score-badge">Total: {{ state.dealer_total }}</div>
     {% else %}
-        <div class="score-badge hidden">Total: ?</div>
+        <div class="score-badge hidden">Total: {{ state.dealer_total|default:"?" }}</div>
     {% endif %}
 
     <div class="hand">
@@ -404,8 +406,8 @@
                 {% if code == "??" %}
                     <div class="card hidden-card"></div>
                 {% else %}
-                    {% with rank=code|slice:":-1" suit=code|slice:"-1:" %}
-                        {% if suit == "H" or suit == "D" %}
+                    {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
+                        {% if suit|upper == "H" or suit|upper == "D" %}
                             <div class="card">
                                 <div class="card-corner">
                                     <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
@@ -454,8 +456,8 @@
     <div class="hand">
         {% if state.player_cards %}
             {% for code in state.player_cards %}
-                {% with rank=code|slice:":-1" suit=code|slice:"-1:" %}
-                    {% if suit == "H" or suit == "D" %}
+                {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
+                    {% if suit|upper == "H" or suit|upper == "D" %}
                         <div class="card">
                             <div class="card-corner">
                                 <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
@@ -501,23 +503,20 @@
     <form method="post">
         {% csrf_token %}
         <div class="btn-row">
-            {% if state.buttons.hit %}
-                <button class="btn btn-hit" type="submit" name="action" value="HIT">Hit</button>
-            {% else %}
-                <button class="btn btn-disabled" type="button" disabled>Hit</button>
-            {% endif %}
+            <button class="btn {% if state.buttons.hit %}btn-hit{% else %}btn-disabled{% endif %}" 
+                type="submit" name="action" value="HIT" 
+                {% if not state.buttons.hit %}disabled{% endif %}>Hit
+            </button>
 
-            {% if state.buttons.stand %}
-                <button class="btn btn-stand" type="submit" name="action" value="STAND">Stand</button>
-            {% else %}
-                <button class="btn btn-disabled" type="button" disabled>Stand</button>
-            {% endif %}
+            <button class="btn {% if state.buttons.stand %}btn-stand{% else %}btn-disabled{% endif %}" 
+                type="submit" name="action" value="STAND" 
+                {% if not state.buttons.stand %}disabled{% endif %}>Stand
+            </button>
 
-            {% if state.buttons.new %}
-                <button class="btn btn-new" type="submit" name="action" value="NEW">New Round</button>
-            {% else %}
-                <button class="btn btn-disabled" type="button" disabled>New Round</button>
-            {% endif %}
+            <button class="btn {% if state.buttons.new %}btn-new{% else %}btn-disabled{% endif %}" 
+                type="submit" name="action" value="NEW" 
+                {% if not state.buttons.new %}disabled{% endif %}>New Round
+            </button>
         </div>
     </form>
 
