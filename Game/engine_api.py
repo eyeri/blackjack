@@ -225,6 +225,13 @@ def get_view_state(engine, hide_dealer_hole: bool = True) -> dict[str, Any]:
     Must not mutate engine. Must not contain tutorial/trainer logic.
     """
     # TODO: read phase
+    current_phase: str = engine.phase
+
+    action_hit: bool = (current_phase == Phase.PLAYER_TURN)
+    action_stand: bool = (current_phase == Phase.PLAYER_TURN)
+    action_new: bool = True # can reset whenever you want
+
+
 
     # TODO: compute player_total, dealer_total
     player_total: int = engine.player.best_total()
@@ -243,9 +250,9 @@ def get_view_state(engine, hide_dealer_hole: bool = True) -> dict[str, Any]:
 
 
     buttons = {
-        "hit":  False,  # TODO: phase-based
-        "stand": False, # TODO: phase-based
-        "new":  True,   # You decided: NEW available without refresh
+        "hit":  action_hit,  # TODO: phase-based
+        "stand": action_stand, # TODO: phase-based
+        "new":  action_new,   # You decided: NEW available without refresh
     }
 
     return {
