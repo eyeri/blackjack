@@ -30,6 +30,10 @@ class GameEngine:
         self.message: str = ""
         self.outcome_text: str = ""  # "WIN" | "LOSE" | "PUSH"
 
+        # Betting System Added
+        self.player_balance = 1000 #initial
+        self.current_bet = 0
+
     def new_round(self) -> None:
         """
         Reset everything and deal initial cards.
@@ -52,7 +56,18 @@ class GameEngine:
             self.phase = Phase.PLAYER_TURN
             self.message = "Player turn: HIT or STAND."
             
+    def _evaluate_hand(self, player_hand: Hand, dealer_hand: Hand) -> str:
+        """
+        [TODO] Helper function to compare ONE hand against the dealer.
+        This is crucial for Splitting later.
         
+        Logic to implement:
+        - If player busts -> "LOSE"
+        - If dealer busts -> "WIN"
+        - Compare totals: Higher wins, equal is "PUSH"
+        - (Optional) Handle Blackjack priority
+        """
+        # TODO: Implement comparison logic
         
 
     def initial_deal(self) -> None:
@@ -117,6 +132,20 @@ class GameEngine:
         - compare totals -> win/lose/push
         - optional: blackjack checks
         """
+
+        """
+        [TODO] Finalize the round using the helper function.
+        
+        Logic to implement:
+        1. Call self._evaluate_hand() to get the outcome
+        2. Update self.player_balance based on outcome:
+           - WIN: Add (current_bet * 2) back to balance
+           - PUSH: Add current_bet (refund) back to balance
+           - LOSE: No action needed (bet already deducted)
+        3. Reset self.current_bet to 0
+        4. Update phase and message
+        """
+        # TODO: Implement round resolution logic
 
         
         # [Fixed] Defined here to prevent UnboundLocalError if player busts
@@ -190,6 +219,12 @@ class GameEngine:
         - first decision of the round
         - exactly 2 cards in player hand
         """
+
+        """
+        [TODO] Return True if double down is valid.
+        Conditions: PLAYER_TURN and player has exactly 2 cards.
+        """
+        # TODO: Check conditions
         # TODO (Member C): implement 
         raise NotImplementedError
 
@@ -208,7 +243,19 @@ class GameEngine:
         Player doubles the bet, draws exactly one card,
         and then automatically stands.
         """
-        # TODO (Member C): implement 
+        # TODO (Member C): implement
+
+        """
+        [TODO] Double the bet, draw one card, and stand.
+        
+        Logic to implement:
+        1. Check if doubling is allowed (can_double_down)
+        2. Check if player has enough balance for the additional bet
+        3. Deduct additional bet from balance, double current_bet
+        4. Draw EXACTLY one card
+        5. Trigger resolution (resolve_round or player_stand)
+        """
+        # TODO: Implement double down logic
         raise NotImplementedError
 
     def player_split(self) -> None:
