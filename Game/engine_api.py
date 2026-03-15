@@ -1,17 +1,17 @@
 # ===================== CHANGES (Milestone 2 -> Game-focused Milestone 3) =====================
 # 1) engine_api is the ONLY place for session serialization:
-#    - export_state(engine) produces JSON-serializable dict for Django session
-#    - import_state(dict) restores engine WITHOUT introducing randomness
+#    - export_state(engine) produces JSON-serializable dict for Django session /
+#    - import_state(dict) restores engine WITHOUT introducing randomness /
 #
 # 2) Introduced (or standardized) constants for clarity and to avoid magic strings:
-#    - ACTION_START / ACTION_NEW / ACTION_HIT / ACTION_STAND
-#    - SESSION_KEY_ENGINE_STATE = "engine_state"
+#    - ACTION_START / ACTION_NEW / ACTION_HIT / ACTION_STAND /
+#    - SESSION_KEY_ENGINE_STATE = "engine_state" /
 #
 # 3) apply_action() policy hardened for web safety:
-#    - Optional: ignore invalid actions instead of raising ValueError (prevents request crash)
-#    - Optional: allow HIT/STAND only during Phase.PLAYER_TURN (prevents illegal transitions)
+#    - Optional: ignore invalid actions instead of raising ValueError (prevents request crash) / 
+#    - Optional: allow HIT/STAND only during Phase.PLAYER_TURN (prevents illegal transitions) / 
 #
-# 4) get_view_state() is a pure "render model":
+# 4) get_view_state() is a pure "render model":----------------------------
 #    - It must NOT contain learning/trainer logic.
 #    - It can hide dealer hole card during PLAYER_TURN ("??")
 #    - It can provide button enable/disable states derived from engine.phase
@@ -160,21 +160,21 @@ def apply_action(engine, action: str) -> None:
     act = (action or "").upper().strip()
 
     if act == ACTION_NEW:
-        # TODO: engine.new_round()
+        engine.new_round()
         return
 
-    # TODO: if engine.phase != Phase.PLAYER_TURN: return
+    if engine.phase != Phase.PLAYER_TURN:
+        return
 
     if act == ACTION_HIT:
-        # TODO: engine.player_hit()
+        engine.player_hit()
         return
 
     if act == ACTION_STAND:
-        # TODO: engine.player_stand()
+        engine.player_stand()
         return
 
     # Unknown action -> ignore
-    return
 
 
 # UI View Model (Render Data) [Old Version]
@@ -213,29 +213,55 @@ def apply_action(engine, action: str) -> None:
 
 # === !!!ADD/REPLACE get_view_state skeleton!!! ===
 
-def get_view_state(engine, hide_dealer_hole: bool = True) -> dict:
+
+# 4) get_view_state() is a pure "render model":----------------------------
+#    - It must NOT contain learning/trainer logic.
+#    - It can hide dealer hole card during PLAYER_TURN ("??")
+#    - It can provide button enable/disable states derived from engine.phase
+
+def get_view_state(engine, hide_dealer_hole: bool = True) -> dict[str, Any]:
     """
     Render model only (data for UI).
     Must not mutate engine. Must not contain tutorial/trainer logic.
     """
     # TODO: read phase
+    current_phase: str = engine.phase
+
+    action_hit: bool = (current_phase == Phase.PLAYER_TURN)
+    action_stand: bool = (current_phase == Phase.PLAYER_TURN)
+    action_new: bool = True # can reset whenever you want
+
+
+
     # TODO: compute player_total, dealer_total
+    player_total: int = engine.player.best_total()
+    dealer_total: int = engine.dealer.best_total()
+
     # TODO: get card codes for player/dealer
+    dealer_cards: List[str] = hand_to_codes(engine.dealer)
+    player_cards: List[str] = hand_to_codes(engine.player)
+    
+
+
     # TODO: hide dealer hole card if PLAYER_TURN
+    if (hide_dealer_hole and (engine.phase == Phase.PLAYER_TURN)):
+        dealer_cards = ["??"] + dealer_cards[1:]
+        dealer_total = None
+
 
     buttons = {
-        "hit":  False,  # TODO: phase-based
-        "stand": False, # TODO: phase-based
-        "new":  True,   # You decided: NEW available without refresh
+        "hit":  action_hit,  # TODO: phase-based
+        "stand": action_stand, # TODO: phase-based
+        "new":  action_new,   # You decided: NEW available without refresh
     }
 
     return {
         "phase": engine.phase.name,
-        "message": "",   # TODO: engine message if exists
-        "outcome": "",   # TODO: outcome text if exists
-        "player_cards": [],  # TODO
-        "dealer_cards": [],  # TODO
-        "player_total": 0,   # TODO
-        "dealer_total": None, # TODO: '?' or None when hidden
+        "message": engine.message,   # TODO: engine message if exists
+        "outcome": getattr(engine, "outcome_text", ""),   # TODO: outcome text if exists
+        "player_cards": player_cards,
+        "dealer_cards": dealer_cards,
+        "player_total": player_total,
+        "dealer_total": dealer_total,
         "buttons": buttons,
     }
