@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
 from typing import List
-from card import Card
+from .card import Card
 
 
 class Deck:
@@ -13,36 +13,34 @@ class Deck:
         Build a standard 52-card deck (x num_decks) and shuffle.
         Must store remaining cards in self.cards.
         """
+        if num_decks < 1:
+            raise ValueError("num_decks must be at least 1")
+
         self.cards: List[Card] = []
-        # TODO (Member A): Build deck into self.cards in a consistent order (deterministic before shuffle).
 
-        # TODO (Member A): Call shuffle() exactly once here (avoid hidden reshuffles elsewhere).
+        # Build deck in deterministic order before shuffle
+        for _ in range(num_decks):
+            for suit in self.SUITS:
+                for rank in self.RANKS:
+                    self.cards.append(Card(rank=rank, suit=suit)) # [Fixed] Using keyword arguments for better readability when instantiating Card.
 
-        # TODO (Member A): Store remaining cards ONLY in self.cards (no duplicates).
-
-        # TODO (Member A): If num_decks < 1, raise ValueError.
-    pass
+        # Shuffle exactly once
+        self.shuffle()
 
     def shuffle(self) -> None:
         """Shuffle remaining cards."""
-        # TODO (Member A): Use random.shuffle(self.cards). Do not recreate cards here.
-
-        # TODO (Member A): No extra randomness outside shuffle()/__init__ (supports reproducible session restore).
-    pass
+        random.shuffle(self.cards)
 
     def draw(self) -> Card:
         """
         Remove and return ONE card from the deck.
         Must not return duplicates.
         """
-        # TODO (Member A): Remove ONE card from a consistent end (recommend: self.cards.pop()).
+        if not self.cards:
+            raise RuntimeError("Cannot draw from empty deck")
 
-        # TODO (Member A): Must never return duplicates; draw must reduce remaining().
-
-        # TODO (Member A): Decide behavior when empty (raise RuntimeError recommended).
-    pass
+        return self.cards.pop()
 
     def remaining(self) -> int:
         """Return number of remaining cards."""
-        # TODO (Member A): Return len(self.cards).
-    pass 
+        return len(self.cards)
