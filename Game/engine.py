@@ -25,6 +25,7 @@ class GameEngine:
         self.deck: Deck = Deck(num_decks=1)
         self.player: Hand = Hand()
         self.dealer: Hand = Hand()
+        self.second_hand = Hand()
         self.phase: Phase = Phase.INIT
         self.message: str = ""
         self.outcome_text: str = ""  # "WIN" | "LOSE" | "PUSH"
@@ -37,6 +38,7 @@ class GameEngine:
         # Re-instantiate to ensure a fresh state and prevent data leakage from previous rounds.
         self.player.cards = []
         self.dealer.cards = []
+        self.second_hand.cards = []
         self.deck.shuffle()
         self.initial_deal()
         self.outcome_text = ""
@@ -149,21 +151,33 @@ class GameEngine:
             dealer_cards = ["hidden"] + [c.code() for c in self.dealer.cards[1:]]
             dealer_total = "hidden"
         else:
-            dealer_cards = self.dealer.cards.codes()
+            dealer_cards = self.dealer.codes()
             dealer_total = self.dealer.base_total()
 
         if hasattr(self.deck, "cards"):
             deck_remaining = len(self.deck.cards)
         else:
             deck_remaining = 0
+
+        if hasattr(self, "second_hand"):
+            second_hand_cards = self.second_hand.codes()
+            second_hand_total = self.second_hand.base_total()
+        else:
+            second_hand_cards = []
+            second_hand_total = 0
+        
+
         return {
             "phase": self.phase.name,
             "outcome_text": self.outcome_text,
-            "player_cards": self.player.cards.codes(),
+            "player_cards": self.player.codes(),
+            "second_hand_cards": second_hand_cards,
             "dealer_cards": dealer_cards,
             "player_total": self.player.base_total(),
+            "second_hand_total": second_hand_total,
             "dealer_total": dealer_total,
             "deck_remaining": deck_remaining
+            
 
         }
         
@@ -177,8 +191,11 @@ class GameEngine:
         - first decision of the round
         - exactly 2 cards in player hand
         """
-        # TODO (Member C): implement 
-        raise NotImplementedError
+        return (
+            self.phase == Phase.PLAYER_TURN 
+            and len(self.player.cards) == 2
+            and not self.player.is_bust()
+        )
 
     def can_split(self) -> bool:
         """
@@ -187,21 +204,44 @@ class GameEngine:
         - exactly 2 cards
         - both cards have same rank
         """
-        # TODO (Member C): implement 
-        raise NotImplementedError
+        return (
+            self.phase == Phase.PLAYER_TURN
+            and len(self.player.cards) == 2
+            and self.player.cards[0].rank == self.player.cards[1].rank
+            )
 
     def player_double_down(self) -> None:
         """
         Player doubles the bet, draws exactly one card,
         and then automatically stands.
         """
-        # TODO (Member C): implement 
-        raise NotImplementedError
+        if not self.can_double_down():
+            self.message = "INVALID action: double down not allowed"
+            return
+            
+            
+        # bet doubles
+        self.player_hit()
+        if self.phase != Phase.ROUND_OVER:
+            self.player_stand()
 
+        self.message = "bet has doubled"
+
+
+  
     def player_split(self) -> None:
         """
         Split the initial hand into two hands.
         """
-        # TODO (Member C): implement 
-        raise NotImplementedError
+        if not self.can_split():
+            self.message = "INVALID action: SPLIT not allowed"
+            return
 
+        self.second_hand.cards = []
+
+        card = self.player.cards.pop()
+        self.second_hand.add(card)
+
+        self.player.add(self.deck.draw())
+        self.second_hand.add(self.deck.draw())
+        self.message = "hand split into 2 hands"
