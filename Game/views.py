@@ -25,27 +25,18 @@
 # =============================================================================================
 
 from django.shortcuts import render, redirect
-from django.views.decorators.http import require_http_methods
+from .engine import GameEngine
+from . import engine_api
 
-# Import compatibility (package vs script)
-try:
-    from .engine import GameEngine
-    from . import engine_api
-except Exception:
-    from engine import GameEngine
-    import engine_api
 
-def _clear_session(request):
+def clear_session(request):
     """
     Clear all game-related keys.
     """
-    for k in (engine_api.SESSION_KEY_ENGINE_STATE,):
-        if k in request.session:
-            del request.session[k]
-    request.session.modified = True
+    request.session.flush()
+    return redirect("blackjack_home")
 
 
-@require_http_methods(["GET", "POST"])
 def blackjack_game(request):
     """
     GET:
@@ -64,27 +55,42 @@ def blackjack_game(request):
     if request.method == "POST":
         action = (request.POST.get("action") or "").upper().strip()
 
-        if action == engine_api.ACTION_START:
-            engine = GameEngine()
-            engine_api.apply_action(engine, engine_api.ACTION_NEW)  # start first round
+        # QUIT 
+        if action == "START":
+            request.session.flush()
+            return redirect("blackjack_home")
+        try:
+            user_bet = int(request.POST.get("bet_amount", 100))
+        except (ValueError, TypeError):
+            user_bet = 100
+        
+        if engine is None:
+            if action == engine_api.ACTION_NEW: 
+                engine = GameEngine()
+                engine_api.apply_action(engine, engine_api.ACTION_NEW, user_bet)
+        else:
+        
+            allowed_actions = (
+                engine_api.ACTION_NEW, 
+                engine_api.ACTION_HIT, 
+                engine_api.ACTION_STAND,
+                engine_api.ACTION_DOUBLE,
+                engine_api.ACTION_SPLIT,
+                "SURRENDER"
+            )
+
+            if action in allowed_actions:
+                engine_api.apply_action(engine, action, user_bet)
+            
+        if engine:
             request.session[engine_api.SESSION_KEY_ENGINE_STATE] = engine_api.export_state(engine)
             request.session.modified = True
-            return redirect("blackjack_home")
 
-        # In-game actions only if started
-        if engine is not None and action in (engine_api.ACTION_NEW, engine_api.ACTION_HIT, engine_api.ACTION_STAND):
-            engine_api.apply_action(engine, action)
-            request.session[engine_api.SESSION_KEY_ENGINE_STATE] = engine_api.export_state(engine)
-            request.session.modified = True
-            return redirect("blackjack_home")
-
-        # Unknown action: just re-render
         return redirect("blackjack_home")
 
     # 3) Render
     if engine is None:
         return render(request, "UI.html", {"started": False})
-
-    # Hide dealer hole card during PLAYER_TURN
-    view_state = engine_api.get_view_state(engine, hide_dealer_hole=True)
-    return render(request, "UI.html", {"started": True, "state": view_state})
+    
+    context = engine_api.get_view_state(engine)
+    return render(request, "UI.html", {"state": context, "started": True})

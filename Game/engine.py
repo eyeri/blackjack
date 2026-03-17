@@ -26,38 +26,45 @@ class GameEngine:
         self.deck: Deck = Deck(num_decks=1)
         self.player: Hand = Hand()
         self.dealer: Hand = Hand()
-        self.second_hand = Hand()
+        self.second_hand: Hand = Hand()
         self.phase: Phase = Phase.INIT
         self.message: str = ""
-        self.outcome_texts: dict[str, str] = {}  # e.g {"player": "WIN", "second_hand": "LOSE"}
-        self.current_bet = 0
+        
+        self.outcome_texts: dict[str, str] = {}  
         self.hand_bets: dict[str, int] = {"player": 0, "second_hand": 0}
+        
         self.player_balance = 1000
-
-        # Betting System Added
-        self.player_balance = 1000 #initial
         self.current_bet = 0
-
-    def new_round(self) -> None:
-        """
-        Reset everything and deal initial cards.
-        phase -> PLAYER_TURN
-        """
-        i = 0
-        while i == 0:
-            self.current_bet = int(input("Enter your bet: "))
-            if self.current_bet > self.player_balance:
-                self.current_bet = 0
-                self.message = "INVALID BET not enough dollars"
-            else:
-                i = 1
-                self.player_balance = self.player_balance - self.current_bet
-        self.hand_bets["player"] = self.current_bet
-        self.hand_bets["second_hand"] = 0
+    @property
+    def outcome_text(self) -> str:
+        return self.outcome_texts.get("player", "")
+    
+    def player_surrender(self) -> None:
+    # only able at first turn
+        if self.phase == Phase.PLAYER_TURN and len(self.player.cards) == 2:
+            refund = self.current_bet // 2
+            self.player_balance += refund
+            self.outcome_texts["player"] = "SURRENDER"
+            self.phase = Phase.ROUND_OVER
+            self.message = f"Surrendered. ${refund} returned to your balance."
+            
+    def new_round(self, bet_amount: int = 100):
+        if self.player_balance < bet_amount:
+            self.message = "Insufficient balance for this bet!"
+            return
+        if bet_amount > self.player_balance:
+            self.message = "INVALID BET not enough dollars."
+            bet_amount = 10
+        
+        self.current_bet = bet_amount
+        self.player_balance -= self.current_bet
+        self.hand_bets = {"player": self.current_bet, "second_hand": 0}
+        
         self.deck = Deck(num_decks=1)
         self.player = Hand()
         self.dealer = Hand()
         self.second_hand = Hand()
+        
         self.message = ""
         self.outcome_texts = {}
         self.phase = Phase.INIT
@@ -78,27 +85,18 @@ class GameEngine:
         - compare totals -> win/lose/push
         - optional: blackjack checks
         """
-        player_total = player_hand.base_total()
-        dealer_total = dealer_hand.base_total()
-        if player_hand.is_blackjack() and dealer_hand.is_blackjack():
-            return "PUSH"
-        elif player_hand.is_blackjack():
-            return "WIN"
-        elif dealer_hand.is_blackjack():
-            return "LOSE"
+        if player_hand.is_bust(): return "LOSE"
+        if dealer_hand.is_bust(): return "WIN"
         
-        elif player_hand.is_bust():
-            return "LOSE"
-        elif dealer_hand.is_bust():
-            return "WIN"
-
-        else:
-            if player_total > dealer_total:
-                return "WIN"
-            elif dealer_total > player_total:
-                return "LOSE"
-            else:
-                return "PUSH"
+        p_total = player_hand.best_total()
+        d_total = dealer_hand.best_total()
+        
+        if player_hand.is_blackjack() and not dealer_hand.is_blackjack(): return "WIN"
+        if not player_hand.is_blackjack() and dealer_hand.is_blackjack(): return "LOSE"
+        
+        if p_total > d_total: return "WIN"
+        elif d_total > p_total: return "LOSE"
+        else: return "PUSH"
         
 
     def initial_deal(self) -> None:
@@ -111,94 +109,64 @@ class GameEngine:
 
     def can_hit(self) -> bool:
         return self.phase == Phase.PLAYER_TURN and not self.player.is_bust()
-
+    
     def can_stand(self) -> bool:
         """Return True if STAND is allowed now."""
         return self.phase == Phase.PLAYER_TURN and not self.player.is_bust()
-
+    
     def player_hit(self) -> None:
         """Player draws one card. If bust -> ROUND_OVER."""
-        if not self.can_hit():
-            self.message = "Invalid action: HIT not allowed now."
-            return
+        if self.phase != Phase.PLAYER_TURN: return
+        
         self.player.add(self.deck.draw())
         if self.player.is_bust():
             self.outcome_texts["player"] = "LOSE"
-            self.phase = Phase.ROUND_OVER
-            self.message = f"Player busts with {self.player.base_total()}. LOSE."
+            self.resolve_round()
         else:
             self.message = f"Player hits ({self.player.base_total()}). HIT or STAND?"
 
 
     def player_stand(self) -> None:
-        """Switch to DEALER_TURN, run dealer, resolve, ROUND_OVER."""
-        if not self.can_stand():
-            self.message = "Invalid action: STAND not allowed now."
-            return
+        if self.phase != Phase.PLAYER_TURN: return
         self.phase = Phase.DEALER_TURN
-        self.message = "Dealer turn"
         self.run_dealer_turn()
         self.resolve_round()
         
 
     def run_dealer_turn(self) -> None:
         """Dealer hits while dealer.base_total() < 17."""
-        while self.dealer.base_total() < 17:
+        while self.dealer.best_total() < 17:
             self.dealer.add(self.deck.draw())
         
 
     def resolve_round(self) -> None:
-        """
-        Resolve the round for all hands (player and second hand if split),
-        update outcome_texts, and adjust player_balance based on bets.
-        """
-        hands = [self.player]
-        if self.second_hand.cards:
-            hands.append(self.second_hand)
-        
-        self.outcome_texts = {}
-        self.hand_bets = getattr(self,"hand_bets", {"player": self.current_bet, "second_hand": 0})
-
-        dealer_total = self.dealer.base_total()
-
-        for i, hand in enumerate(hands):
-            key = "player" if i == 0 else "second_hand"
-
+        hands = {"player": self.player}
+        if self.second_hand.cards: 
+            hands["second_hand"] = self.second_hand
+            
+        for key, hand in hands.items():
             result = self._evaluate_hand(hand, self.dealer)
             self.outcome_texts[key] = result
             
-            bet = self.hand_bets.get(key, self.current_bet)
-
+            bet = self.hand_bets.get(key, 0)
             if result == "WIN":
-                if hand.is_blackjack():
-                    # Blackjack pays 3:2
-                    self.player_balance += int(bet * 2.5)
-                else:
-                    self.player_balance += bet * 2
+                multiplier = 2.5 if hand.is_blackjack() else 2.0
+                self.player_balance += int(bet * multiplier)
             elif result == "PUSH":
-                # Return bet
                 self.player_balance += bet
         
-        results_str = ", ".join(f"{k}: {v}" for k, v in self.outcome_texts.items())
-        self.message = f"Dealer {dealer_total}. Results: {results_str}"
+        self.message = f"dealer {self.dealer.best_total()}. Result: " + \
+                       ", ".join([f"{k}:{v}" for k, v in self.outcome_texts.items()])
         self.phase = Phase.ROUND_OVER
-        
 
     def state_snapshot(self, hide_dealer_hole: bool = True) -> dict:
         dealer_codes = self.dealer.codes()
-        dealer_total: Optional[int] = self.dealer.base_total()
         if hide_dealer_hole and self.phase == Phase.PLAYER_TURN:
-            dealer_cards = ["??"] + dealer_codes[1:]
+            dealer_display = ["??"] + dealer_codes[1:]
             dealer_total = None
         else:
-            dealer_cards = dealer_codes
-
-        if hasattr(self.deck, "remaining"):
-            deck_remaining = self.deck.remaining()
-        elif hasattr(self.deck, "cards"):
-            deck_remaining = len(self.deck.cards)
-        else:
-            deck_remaining = 0
+            dealer_display = dealer_codes
+            dealer_total = self.dealer.best_total()
 
         if hasattr(self, "second_hand"):
             second_hand_cards = self.second_hand.codes()
@@ -210,14 +178,13 @@ class GameEngine:
 
         return {
             "phase": self.phase.name,
+            "outcome_text": self.outcome_text, 
             "outcome_texts": self.outcome_texts,
             "player_cards": self.player.codes(),
-            "second_hand_cards": second_hand_cards,
-            "dealer_cards": dealer_cards,
-            "player_total": self.player.base_total(),
-            "second_hand_total": second_hand_total,
+            "second_hand_cards": self.second_hand.codes() if self.second_hand.cards else [],
+            "dealer_cards": dealer_display,
+            "player_total": self.player.best_total(),
             "dealer_total": dealer_total,
-            "deck_remaining": deck_remaining,
             "player_balance": self.player_balance,
             "current_bet": self.current_bet
         }
@@ -232,7 +199,7 @@ class GameEngine:
             and not self.player.is_bust()
             and self.player_balance >= self.current_bet
         )
-
+    
     def can_split(self) -> bool:
         return (
             self.phase == Phase.PLAYER_TURN
@@ -242,17 +209,38 @@ class GameEngine:
         )
 
     def player_double_down(self) -> None:
-        if not self.can_double_down():
-            self.message = "INVALID action: double down not allowed"
+        """
+        Player doubles the bet, draws exactly one card,
+        and then automatically stands.
+        """
+
+        """
+        [TODO] Double the bet, draw one card, and stand.
+        
+        Logic to implement:
+        1. Check if doubling is allowed (can_double_down)
+        2. Check if player has enough balance for the additional bet
+        3. Deduct additional bet from balance, double current_bet
+        4. Draw EXACTLY one card
+        5. Trigger resolution (resolve_round or player_stand)
+        """
+        if not self.can_double_down(): return
+
+        if not self.can_double_down(): 
+            self.message = "Double down is not allowed."
             return
+        
         self.player_balance -= self.current_bet
         self.current_bet *= 2
+        self.hand_bets["player"] = self.current_bet 
         
-        self.player_hit()
-        if self.phase != Phase.ROUND_OVER:
+        self.player.add(self.deck.draw())
+        
+        if self.player.is_bust():
+            self.outcome_texts["player"] = "LOSE"
+            self.resolve_round()
+        else:
             self.player_stand()
-
-        self.message = "Bet has doubled"
 
     def player_split(self) -> None:
         if not self.can_split():
