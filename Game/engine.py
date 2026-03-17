@@ -26,9 +26,13 @@ class GameEngine:
         self.deck: Deck = Deck(num_decks=1)
         self.player: Hand = Hand()
         self.dealer: Hand = Hand()
+        self.second_hand = Hand()
         self.phase: Phase = Phase.INIT
         self.message: str = ""
-        self.outcome_text: str = ""  # "WIN" | "LOSE" | "PUSH"
+        self.outcome_texts: dict[str, str] = {}  # e.g {"player": "WIN", "second_hand": "LOSE"}
+        self.current_bet = 0
+        self.hand_bets: dict[str, int] = {"player": 0, "second_hand": 0}
+        self.player_balance = 1000
 
         # Betting System Added
         self.player_balance = 1000 #initial
@@ -39,17 +43,26 @@ class GameEngine:
         Reset everything and deal initial cards.
         phase -> PLAYER_TURN
         """
-        # [Fixed] Re-instantiate to ensure a fresh state and prevent data leakage from previous rounds.
+        i = 0
+        while i == 0:
+            self.current_bet = int(input("Enter your bet: "))
+            if self.current_bet > self.player_balance:
+                self.current_bet = 0
+                self.message = "INVALID BET not enough dollars"
+            else:
+                i = 1
+                self.player_balance = self.player_balance - self.current_bet
+        self.hand_bets["player"] = self.current_bet
+        self.hand_bets["second_hand"] = 0
         self.deck = Deck(num_decks=1)
         self.player = Hand()
         self.dealer = Hand()
-        
+        self.second_hand = Hand()
         self.message = ""
-        self.outcome_text = ""
+        self.outcome_texts = {}
         self.phase = Phase.INIT
-
         self.initial_deal()
-
+        
         if self.player.is_blackjack() or self.dealer.is_blackjack():
             self.resolve_round()
         else:
@@ -58,26 +71,42 @@ class GameEngine:
             
     def _evaluate_hand(self, player_hand: Hand, dealer_hand: Hand) -> str:
         """
-        [TODO] Helper function to compare ONE hand against the dealer.
-        This is crucial for Splitting later.
-        
-        Logic to implement:
-        - If player busts -> "LOSE"
-        - If dealer busts -> "WIN"
-        - Compare totals: Higher wins, equal is "PUSH"
-        - (Optional) Handle Blackjack priority
+        Decide WIN/LOSE/PUSH, set message, phase=ROUND_OVER.
+        Rules:
+        - player bust -> lose
+        - dealer bust -> win
+        - compare totals -> win/lose/push
+        - optional: blackjack checks
         """
-        # TODO: Implement comparison logic
+        player_total = player_hand.base_total()
+        dealer_total = dealer_hand.base_total()
+        if player_hand.is_blackjack() and dealer_hand.is_blackjack():
+            return "PUSH"
+        elif player_hand.is_blackjack():
+            return "WIN"
+        elif dealer_hand.is_blackjack():
+            return "LOSE"
+        
+        elif player_hand.is_bust():
+            return "LOSE"
+        elif dealer_hand.is_bust():
+            return "WIN"
+
+        else:
+            if player_total > dealer_total:
+                return "WIN"
+            elif dealer_total > player_total:
+                return "LOSE"
+            else:
+                return "PUSH"
         
 
     def initial_deal(self) -> None:
         """Deal 2 cards to player and 2 cards to dealer."""
-        # [Fix #1] Standard order: Player, Dealer, Player, Dealer
         self.player.add(self.deck.draw())
         self.dealer.add(self.deck.draw())
         self.player.add(self.deck.draw())
         self.dealer.add(self.deck.draw())
-        # [Fixed] since there is if-else in new_round, this is enough
         
 
     def can_hit(self) -> bool:
@@ -86,181 +115,157 @@ class GameEngine:
     def can_stand(self) -> bool:
         """Return True if STAND is allowed now."""
         return self.phase == Phase.PLAYER_TURN and not self.player.is_bust()
-        # [Fixed] since there is if-else in new_round, this is enough
 
     def player_hit(self) -> None:
-
         """Player draws one card. If bust -> ROUND_OVER."""
         if not self.can_hit():
-            self.message = "Invalid action: HIT not allowed now." #text added
+            self.message = "Invalid action: HIT not allowed now."
             return
         self.player.add(self.deck.draw())
         if self.player.is_bust():
-            self.outcome_text = "LOSE" # text added
+            self.outcome_texts["player"] = "LOSE"
             self.phase = Phase.ROUND_OVER
-            
-            # [Fixed] Added dynamic messages to provide immediate feedback on the player's total and next available actions.
-            self.message = f"Player busts with {self.player.best_total()}. LOSE."
+            self.message = f"Player busts with {self.player.base_total()}. LOSE."
         else:
-            self.message = f"Player hits ({self.player.best_total()}). HIT or STAND?"
+            self.message = f"Player hits ({self.player.base_total()}). HIT or STAND?"
 
 
     def player_stand(self) -> None:
         """Switch to DEALER_TURN, run dealer, resolve, ROUND_OVER."""
         if not self.can_stand():
-            self.message = "Invalid action: STAND not allowed now." # text added
+            self.message = "Invalid action: STAND not allowed now."
             return
         self.phase = Phase.DEALER_TURN
-        self.message = "Dealer turn" # text added
+        self.message = "Dealer turn"
         self.run_dealer_turn()
         self.resolve_round()
-        # [Fixed] since there is if-else in new_round, this is enough
         
 
     def run_dealer_turn(self) -> None:
-        """Dealer hits while dealer.best_total() < 17."""
-        while self.dealer.best_total() < 17:
+        """Dealer hits while dealer.base_total() < 17."""
+        while self.dealer.base_total() < 17:
             self.dealer.add(self.deck.draw())
         
 
     def resolve_round(self) -> None:
         """
-        Decide WIN/LOSE/PUSH, set message, phase=ROUND_OVER.
-        Rules:
-        - player bust -> lose
-        - dealer bust -> win
-        - compare totals -> win/lose/push
-        - optional: blackjack checks
+        Resolve the round for all hands (player and second hand if split),
+        update outcome_texts, and adjust player_balance based on bets.
         """
-
-        """
-        [TODO] Finalize the round using the helper function.
+        hands = [self.player]
+        if self.second_hand.cards:
+            hands.append(self.second_hand)
         
-        Logic to implement:
-        1. Call self._evaluate_hand() to get the outcome
-        2. Update self.player_balance based on outcome:
-           - WIN: Add (current_bet * 2) back to balance
-           - PUSH: Add current_bet (refund) back to balance
-           - LOSE: No action needed (bet already deducted)
-        3. Reset self.current_bet to 0
-        4. Update phase and message
-        """
-        # TODO: Implement round resolution logic
+        self.outcome_texts = {}
+        self.hand_bets = getattr(self,"hand_bets", {"player": self.current_bet, "second_hand": 0})
 
+        dealer_total = self.dealer.base_total()
+
+        for i, hand in enumerate(hands):
+            key = "player" if i == 0 else "second_hand"
+
+            result = self._evaluate_hand(hand, self.dealer)
+            self.outcome_texts[key] = result
+            
+            bet = self.hand_bets.get(key, self.current_bet)
+
+            if result == "WIN":
+                if hand.is_blackjack():
+                    # Blackjack pays 3:2
+                    self.player_balance += int(bet * 2.5)
+                else:
+                    self.player_balance += bet * 2
+            elif result == "PUSH":
+                # Return bet
+                self.player_balance += bet
         
-        # [Fixed] Defined here to prevent UnboundLocalError if player busts
-        player_total = self.player.best_total()
-        dealer_total = self.dealer.best_total()
-
-        # [Fix #2] Blackjack priority FIRST (natural blackjack beats non-blackjack 21)
-        if self.player.is_blackjack() and self.dealer.is_blackjack():
-            self.outcome_text = "PUSH"
-        elif self.player.is_blackjack():
-            self.outcome_text = "WIN"
-        elif self.dealer.is_blackjack():
-            self.outcome_text = "LOSE"
-
-        # Bust checks
-        elif self.player.is_bust():
-            self.outcome_text = "LOSE"
-        elif self.dealer.is_bust():
-            self.outcome_text = "WIN"
-
-        # Compare totals
-        else:
-            if player_total > dealer_total:
-                self.outcome_text = "WIN"
-            elif dealer_total > player_total:
-                self.outcome_text = "LOSE"
-            else:
-                self.outcome_text = "PUSH"
-        self.message = f"Player {player_total} vs Dealer {dealer_total} {self.outcome_text}"
-        self.phase = Phase.ROUND_OVER # [Fixed] Ensure the game state transitions to finished
-
+        results_str = ", ".join(f"{k}: {v}" for k, v in self.outcome_texts.items())
+        self.message = f"Dealer {dealer_total}. Results: {results_str}"
+        self.phase = Phase.ROUND_OVER
+        
 
     def state_snapshot(self, hide_dealer_hole: bool = True) -> dict:
-        # [Fix #3] Hole card hiding should keep types consistent:
-        # - hide first dealer card as "??"
-        # - dealer_total should be None while hidden (not a string)
         dealer_codes = self.dealer.codes()
-        dealer_total: Optional[int] = self.dealer.best_total()
-
-        if hide_dealer_hole and self.phase == Phase.PLAYER_TURN and len(dealer_codes) > 0:
+        dealer_total: Optional[int] = self.dealer.base_total()
+        if hide_dealer_hole and self.phase == Phase.PLAYER_TURN:
             dealer_cards = ["??"] + dealer_codes[1:]
             dealer_total = None
         else:
             dealer_cards = dealer_codes
 
-        # [Fixed] Fallback logic for deck count
-        if hasattr(self.deck, "remaining"): # Try specific method first
+        if hasattr(self.deck, "remaining"):
             deck_remaining = self.deck.remaining()
         elif hasattr(self.deck, "cards"):
             deck_remaining = len(self.deck.cards)
         else:
             deck_remaining = 0
 
+        if hasattr(self, "second_hand"):
+            second_hand_cards = self.second_hand.codes()
+            second_hand_total = self.second_hand.base_total()
+        else:
+            second_hand_cards = []
+            second_hand_total = None
+        
+
         return {
             "phase": self.phase.name,
-            "outcome_text": self.outcome_text,
-            "player_cards": self.player.codes(), # Fixed: call codes() on Hand
+            "outcome_texts": self.outcome_texts,
+            "player_cards": self.player.codes(),
+            "second_hand_cards": second_hand_cards,
             "dealer_cards": dealer_cards,
-            "player_total": self.player.best_total(),
+            "player_total": self.player.base_total(),
+            "second_hand_total": second_hand_total,
             "dealer_total": dealer_total,
-            "deck_remaining": deck_remaining
+            "deck_remaining": deck_remaining,
+            "player_balance": self.player_balance,
+            "current_bet": self.current_bet
         }
-    
+        
 
-    #Advanced Rule Extension
+    # Advanced Rule Extension
 
     def can_double_down(self) -> bool:
-        """
-        Return True if DOUBLE DOWN is allowed now.
-        Typical conditions (for future):
-        - first decision of the round
-        - exactly 2 cards in player hand
-        """
-
-        """
-        [TODO] Return True if double down is valid.
-        Conditions: PLAYER_TURN and player has exactly 2 cards.
-        """
-        # TODO: Check conditions
-        # TODO (Member C): implement 
-        raise NotImplementedError
+        return (
+            self.phase == Phase.PLAYER_TURN 
+            and len(self.player.cards) == 2
+            and not self.player.is_bust()
+            and self.player_balance >= self.current_bet
+        )
 
     def can_split(self) -> bool:
-        """
-        Return True if SPLIT is allowed now.
-        Typical conditions (for future):
-        - exactly 2 cards
-        - both cards have same rank
-        """
-        # TODO (Member C): implement 
-        raise NotImplementedError
+        return (
+            self.phase == Phase.PLAYER_TURN
+            and len(self.player.cards) == 2
+            and self.player.cards[0].rank == self.player.cards[1].rank
+            and self.player_balance >= self.current_bet
+        )
 
     def player_double_down(self) -> None:
-        """
-        Player doubles the bet, draws exactly one card,
-        and then automatically stands.
-        """
-        # TODO (Member C): implement
-
-        """
-        [TODO] Double the bet, draw one card, and stand.
+        if not self.can_double_down():
+            self.message = "INVALID action: double down not allowed"
+            return
+        self.player_balance -= self.current_bet
+        self.current_bet *= 2
         
-        Logic to implement:
-        1. Check if doubling is allowed (can_double_down)
-        2. Check if player has enough balance for the additional bet
-        3. Deduct additional bet from balance, double current_bet
-        4. Draw EXACTLY one card
-        5. Trigger resolution (resolve_round or player_stand)
-        """
-        # TODO: Implement double down logic
-        raise NotImplementedError
+        self.player_hit()
+        if self.phase != Phase.ROUND_OVER:
+            self.player_stand()
+
+        self.message = "Bet has doubled"
 
     def player_split(self) -> None:
-        """
-        Split the initial hand into two hands.
-        """
-        # TODO (Member C): implement 
-        raise NotImplementedError
+        if not self.can_split():
+            self.message = "INVALID action: SPLIT not allowed"
+            return
+
+        self.second_hand.cards = []
+
+        card = self.player.cards.pop()
+        self.second_hand.add(card)
+
+        self.player.add(self.deck.draw())
+        self.second_hand.add(self.deck.draw())
+
+        self.hand_bets["second_hand"] = self.hand_bets["player"]
+        self.message = "Hand split into 2 hands"
