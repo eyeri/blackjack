@@ -34,6 +34,10 @@ class GameEngine:
         self.hand_bets: dict[str, int] = {"player": 0, "second_hand": 0}
         self.player_balance = 1000
 
+        # Betting System Added
+        self.player_balance = 1000 #initial
+        self.current_bet = 0
+
     def new_round(self) -> None:
         """
         Reset everything and deal initial cards.

@@ -1,47 +1,90 @@
-# views.py
-"""
-View placeholder.
+# ===================== CHANGES (Milestone 2 -> Game-focused Milestone 3) =====================
+# 1) Removed "one-action only" test harness:
+#    - Deleted session keys: "locked", "preserve_once", "game_state", "deck_serialized", "message"
+#    - Deleted logic that forced ONE HIT/STAND then locked the buttons and required F5 refresh.
+#
+# 2) Switched to engine_api as the single source of truth for session state:
+#    - BEFORE: views.py created/restored engine manually using state_snapshot + deck_serialized
+#    - AFTER : views.py always calls:
+#             - engine_api.import_state(session["engine_state"])
+#             - engine_api.apply_action(engine, ACTION)
+#             - engine_api.export_state(engine) -> session["engine_state"]
+#             - engine_api.get_view_state(engine) -> UI render model
+#
+# 3) Unified session storage into ONE key:
+#    - BEFORE: multiple keys ("game_state" + "deck_serialized" + others)
+#    - AFTER : single key "engine_state" (JSON-serializable dict produced by engine_api.export_state)
+#
+# 4) Action routing became explicit and consistent:
+#    - BEFORE: action values were lowercase strings ("start", "hit", "stand")
+#    - AFTER : action values are normalized (e.g., "START", "HIT", "STAND", "NEW")
+#
+# 5) Added NEW round flow without page refresh:
+#    - "NEW" action calls engine.new_round() via engine_api.apply_action
+#    - The "loop" is handled by repeated HTTP requests + session restore (web request cycle).
+# =============================================================================================
 
-This file will handle UI requests and delegate
-game logic processing to engine_api.py.
-"""
+from django.shortcuts import render, redirect
+from django.views.decorators.http import require_http_methods
 
-from django.contrib import admin
-from django.urls import path, include
-from django.http import JsonResponse
-from .engine import GameEngine
-from .engine_api import get_view_state
+# Import compatibility (package vs script)
+try:
+    from .engine import GameEngine
+    from . import engine_api
+except Exception:
+    from engine import GameEngine
+    import engine_api
 
-def index(request):
+def _clear_session(request):
     """
-    Placeholder view.
-
-    UI team will implement request handling logic here.
+    Clear all game-related keys.
     """
-    # TODO (Milestone 3):
-    # - Add user-facing messages and explanations for learning support
-    # - Improve UI presentation (layout, styling)
+    for k in (engine_api.SESSION_KEY_ENGINE_STATE,):
+        if k in request.session:
+            del request.session[k]
+    request.session.modified = True
 
-    return render(request, 'blackjack/index.html')
 
-def milestone2_api_demo(request):
+@require_http_methods(["GET", "POST"])
+def blackjack_game(request):
     """
-    PROTOTYPE VALIDATION ONLY:
-    This view proves that the core engine and the API contract (engine_api.py)
-    are functional within the Django framework. 
-    Full session management and UI integration are deferred to Milestone 3.
+    GET:
+      - If no session state -> show START screen
+      - If session exists -> render current game view_state
+    POST:
+      - START -> create engine + NEW round immediately
+      - HIT/STAND/NEW -> restore engine, apply action, save, render
     """
-    # Initialize the robust engine
-    engine = GameEngine()
-    engine.new_round() # Executes initial deal
-    
-    # Generate the View State (JSON)
-    # This proves we can communicate game state to a front-end
-    view_data = get_view_state(engine, hide_dealer_hole=True)
-    
-    return JsonResponse({
-        "milestone": 2,
-        "validation_status": "Passed",
-        "logic_verification": "Engine-to-API bridge functional",
-        "game_data": view_data
-    })
+
+    # 1) Restore engine from session (if exists)
+    raw_state = request.session.get(engine_api.SESSION_KEY_ENGINE_STATE)
+    engine = engine_api.import_state(raw_state) if raw_state else None
+
+    # 2) Handle actions
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").upper().strip()
+
+        if action == engine_api.ACTION_START:
+            engine = GameEngine()
+            engine_api.apply_action(engine, engine_api.ACTION_NEW)  # start first round
+            request.session[engine_api.SESSION_KEY_ENGINE_STATE] = engine_api.export_state(engine)
+            request.session.modified = True
+            return redirect("blackjack_home")
+
+        # In-game actions only if started
+        if engine is not None and action in (engine_api.ACTION_NEW, engine_api.ACTION_HIT, engine_api.ACTION_STAND):
+            engine_api.apply_action(engine, action)
+            request.session[engine_api.SESSION_KEY_ENGINE_STATE] = engine_api.export_state(engine)
+            request.session.modified = True
+            return redirect("blackjack_home")
+
+        # Unknown action: just re-render
+        return redirect("blackjack_home")
+
+    # 3) Render
+    if engine is None:
+        return render(request, "UI.html", {"started": False})
+
+    # Hide dealer hole card during PLAYER_TURN
+    view_state = engine_api.get_view_state(engine, hide_dealer_hole=True)
+    return render(request, "UI.html", {"started": True, "state": view_state})

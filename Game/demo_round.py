@@ -1,4 +1,4 @@
-from engine import GameEngine, Phase
+from .engine import GameEngine, Phase
 
 def print_state(snapshot):
     print(f"\n--- [Phase: {snapshot['phase']}] ---")

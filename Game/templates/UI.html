@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            background: radial-gradient(ellipse at center, #1a5c2a 0%, #0d3318 60%, #081a0e 100%);
+            font-family: 'Georgia', serif;
+            color: #f0e6c8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 30px 20px 60px;
+        }
+
+        /* ── Header ── */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 3rem;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            color: #f0d060;
+            text-shadow: 0 0 20px rgba(240, 208, 96, 0.5), 2px 2px 6px rgba(0,0,0,0.8);
+        }
+        .header .subtitle {
+            font-size: 0.85rem;
+            letter-spacing: 4px;
+            color: #a0c080;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+
+        /* ── Table felt ── */
+        .table {
+            width: 100%;
+            max-width: 680px;
+            background: radial-gradient(ellipse at center, #1e6b30 0%, #155022 100%);
+            border-radius: 20px;
+            border: 3px solid #8b6914;
+            box-shadow: 0 0 0 6px #5c4208, 0 20px 60px rgba(0,0,0,0.7);
+            padding: 30px 28px;
+        }
+
+        /* ── Start Screen ── */
+        .start-screen {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .start-screen .logo {
+            font-size: 5rem;
+            margin-bottom: 10px;
+        }
+        .start-screen h2 {
+            font-size: 1.6rem;
+            color: #f0d060;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+        }
+        .start-screen p {
+            color: #a0c080;
+            font-size: 0.95rem;
+            margin-bottom: 36px;
+            letter-spacing: 1px;
+        }
+        .start-rules {
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(240,208,96,0.2);
+            border-radius: 10px;
+            padding: 16px 24px;
+            margin: 0 auto 30px;
+            max-width: 360px;
+            text-align: left;
+        }
+        .start-rules h3 {
+            color: #f0d060;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .start-rules li {
+            font-size: 0.88rem;
+            color: #c8dab0;
+            margin-bottom: 5px;
+            list-style: none;
+            padding-left: 14px;
+            position: relative;
+        }
+        .start-rules li::before {
+            content: "♦";
+            color: #f0d060;
+            position: absolute;
+            left: 0;
+            font-size: 0.6rem;
+            top: 3px;
+        }
+
+        /* ── Zone labels ── */
+        .zone-label {
+            font-size: 0.72rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #a0c080;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .zone-label::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: rgba(160,192,128,0.3);
+        }
+
+        /* ── Score badge ── */
+        .score-badge {
+            display: inline-block;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(240,208,96,0.3);
+            border-radius: 20px;
+            padding: 3px 14px;
+            font-size: 0.85rem;
+            color: #f0d060;
+            margin-bottom: 14px;
+        }
+        .score-badge.busted {
+            border-color: #e05050;
+            color: #e05050;
+        }
+        .score-badge.hidden {
+            color: #a0c080;
+            border-color: rgba(160,192,128,0.3);
+        }
+
+        /* ── Card hand ── */
+        .hand {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            min-height: 110px;
+            align-items: flex-start;
+        }
+
+        /* ── Playing card ── */
+        .card {
+            width: 72px;
+            height: 105px;
+            background: #fefefe;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-shadow: 2px 4px 10px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px 6px;
+            position: relative;
+            animation: dealCard 0.25s ease-out;
+        }
+        @keyframes dealCard {
+            from { opacity: 0; transform: translateY(-12px) rotate(-4deg); }
+            to   { opacity: 1; transform: translateY(0) rotate(0deg); }
+        }
+        .card.hidden-card {
+            background: repeating-linear-gradient(
+                135deg,
+                #1a3a8a 0px, #1a3a8a 8px,
+                #1e44a0 8px, #1e44a0 16px
+            );
+            border: 2px solid #2a54b8;
+        }
+        .card-corner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1;
+        }
+        .card-corner.bottom {
+            align-self: flex-end;
+            transform: rotate(180deg);
+        }
+        .card-rank {
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: inherit;
+            line-height: 1;
+        }
+        .card-suit-small {
+            font-size: 0.75rem;
+            line-height: 1;
+        }
+        .card-suit-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.8rem;
+        }
+        .red  { color: #cc2222; }
+        .black { color: #111111; }
+
+        /* ── Divider ── */
+        .divider {
+            border: none;
+            border-top: 1px solid rgba(160,192,128,0.2);
+            margin: 22px 0;
+        }
+
+        /* ── Message box ── */
+        .message-box {
+            background: rgba(0,0,0,0.3);
+            border-left: 3px solid #f0d060;
+            border-radius: 6px;
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            color: #f0e6c8;
+            margin-bottom: 22px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .message-box .msg-icon { font-size: 1.1rem; }
+
+        /* ── Outcome banner ── */
+        .outcome-banner {
+            text-align: center;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 22px;
+            animation: fadeIn 0.4s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .outcome-win  { background: rgba(50,180,80,0.25); border: 2px solid #32b450; color: #60e880; }
+        .outcome-lose { background: rgba(200,50,50,0.2);  border: 2px solid #c83232; color: #e86060; }
+        .outcome-push { background: rgba(200,160,50,0.2); border: 2px solid #c8a032; color: #e8c060; }
+
+        /* ── Buttons ── */
+        .btn-row {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 13px 28px;
+            font-size: 0.95rem;
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            min-width: 110px;
+        }
+        .btn:active { transform: scale(0.96); }
+
+        .btn-start {
+            background: linear-gradient(135deg, #f0d060, #c8a020);
+            color: #1a1a1a;
+            font-size: 1.05rem;
+            padding: 15px 50px;
+            box-shadow: 0 4px 16px rgba(240,208,96,0.35);
+        }
+        .btn-start:hover { background: linear-gradient(135deg, #f8e070, #d8b030); box-shadow: 0 6px 20px rgba(240,208,96,0.5); }
+
+        .btn-hit {
+            background: linear-gradient(135deg, #3a9a50, #226632);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(50,160,80,0.3);
+        }
+        .btn-hit:hover { background: linear-gradient(135deg, #4ab060, #2a7640); }
+
+        .btn-stand {
+            background: linear-gradient(135deg, #c03030, #8a1a1a);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(180,40,40,0.3);
+        }
+        .btn-stand:hover { background: linear-gradient(135deg, #d04040, #9a2828); }
+
+        .btn-new {
+            background: linear-gradient(135deg, #4060c0, #243880);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(60,90,200,0.3);
+        }
+        .btn-new:hover { background: linear-gradient(135deg, #5070d0, #304898); }
+
+        .btn-disabled {
+            background: rgba(60,60,60,0.5) !important;
+            color: rgba(180,180,180,0.4) !important;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+            border: 1px solid rgba(100,100,100,0.3);
+        }
+        .btn-disabled:active { transform: none !important; }
+
+        /* ── Phase indicator ── */
+        .phase-pill {
+            display: inline-block;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 3px 12px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(160,192,128,0.3);
+            color: #a0c080;
+            margin-bottom: 20px;
+        }
+
+        /* ── Empty hand placeholder ── */
+        .empty-hand {
+            color: rgba(160,192,128,0.4);
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            padding: 12px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Blackjack</h1>
+    <div class="subtitle">Casino Card Game</div>
+</div>
+
+<div class="table">
+
+    {% if not started %}
+    <!-- ══ START SCREEN ══ -->
+    <div class="start-screen">
+        <div class="logo">🃏</div>
+        <h2>Welcome to Blackjack</h2>
+        <p>Beat the dealer. Get as close to 21 as possible.</p>
+
+        <div class="start-rules">
+            <h3>How to Play</h3>
+            <ul>
+                <li>You and the dealer each start with 2 cards</li>
+                <li>Hit to draw another card</li>
+                <li>Stand to end your turn</li>
+                <li>Go over 21 and you bust — dealer wins</li>
+                <li>Dealer must hit until reaching 17 or higher</li>
+            </ul>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-start" type="submit" name="action" value="START">Deal Cards</button>
+        </form>
+    </div>
+
+    {% else %}
+    <!-- ══ GAME SCREEN ══ -->
+
+    {% if state.phase %}
+    <div style="text-align:center;">
+        <span class="phase-pill">{{ state.phase|title }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Outcome banner -->
+    {% if state.outcome %}
+        {% with outcome_lower=state.outcome|lower %}
+            {% if "win" in outcome_lower or "blackjack" in outcome_lower %}
+                <div class="outcome-banner outcome-win">🏆 {{ state.outcome }}</div>
+            {% elif "bust" in outcome_lower or "lose" in outcome_lower or "dealer" in outcome_lower %}
+                <div class="outcome-banner outcome-lose">💔 {{ state.outcome }}</div>
+            {% else %}
+                <div class="outcome-banner outcome-push">🤝 {{ state.outcome }}</div>
+            {% endif %}
+        {% endwith %}
+    {% endif %}
+
+    <!-- Dealer zone -->
+    <div class="zone-label">Dealer's Hand</div>
+
+    {% if state.dealer_total is not None %}
+        <div class="score-badge">Total: {{ state.dealer_total }}</div>
+    {% else %}
+        <div class="score-badge hidden">Total: {{ state.dealer_total|default:"?" }}</div>
+    {% endif %}
+
+    <div class="hand">
+        {% if state.dealer_cards %}
+            {% for code in state.dealer_cards %}
+                {% if code == "??" %}
+                    <div class="card hidden-card"></div>
+                {% else %}
+                    {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
+                        {% if suit|upper == "H" or suit|upper == "D" %}
+                            <div class="card">
+                                <div class="card-corner">
+                                    <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                    <div class="card-suit-small red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
+                                </div>
+                                <div class="card-suit-center red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
+                                <div class="card-corner bottom">
+                                    <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                    <div class="card-suit-small red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="card">
+                                <div class="card-corner">
+                                    <div class="card-rank black">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                    <div class="card-suit-small black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
+                                </div>
+                                <div class="card-suit-center black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
+                                <div class="card-corner bottom">
+                                    <div class="card-rank black">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                    <div class="card-suit-small black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <div class="empty-hand">No cards yet</div>
+        {% endif %}
+    </div>
+
+    <hr class="divider">
+
+    <!-- Player zone -->
+    <div class="zone-label">Your Hand</div>
+
+    {% if state.player_total %}
+        {% if state.player_total > 21 %}
+            <div class="score-badge busted">Total: {{ state.player_total }} — BUST</div>
+        {% else %}
+            <div class="score-badge">Total: {{ state.player_total }}</div>
+        {% endif %}
+    {% endif %}
+
+    <div class="hand">
+        {% if state.player_cards %}
+            {% for code in state.player_cards %}
+                {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
+                    {% if suit|upper == "H" or suit|upper == "D" %}
+                        <div class="card">
+                            <div class="card-corner">
+                                <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                <div class="card-suit-small red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
+                            </div>
+                            <div class="card-suit-center red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
+                            <div class="card-corner bottom">
+                                <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                <div class="card-suit-small red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="card">
+                            <div class="card-corner">
+                                <div class="card-rank black">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                <div class="card-suit-small black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
+                            </div>
+                            <div class="card-suit-center black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
+                            <div class="card-corner bottom">
+                                <div class="card-rank black">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                <div class="card-suit-small black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
+                            </div>
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% endfor %}
+        {% else %}
+            <div class="empty-hand">No cards yet</div>
+        {% endif %}
+    </div>
+
+    <hr class="divider">
+
+    <!-- Message -->
+    {% if state.message %}
+    <div class="message-box">
+        <span class="msg-icon">💬</span>
+        {{ state.message }}
+    </div>
+    {% endif %}
+
+    <!-- Action buttons -->
+    <form method="post">
+        {% csrf_token %}
+        <div class="btn-row">
+            <button class="btn {% if state.buttons.hit %}btn-hit{% else %}btn-disabled{% endif %}" 
+                type="submit" name="action" value="HIT" 
+                {% if not state.buttons.hit %}disabled{% endif %}>Hit
+            </button>
+
+            <button class="btn {% if state.buttons.stand %}btn-stand{% else %}btn-disabled{% endif %}" 
+                type="submit" name="action" value="STAND" 
+                {% if not state.buttons.stand %}disabled{% endif %}>Stand
+            </button>
+
+            <button class="btn {% if state.buttons.new %}btn-new{% else %}btn-disabled{% endif %}" 
+                type="submit" name="action" value="NEW" 
+                {% if not state.buttons.new %}disabled{% endif %}>New Round
+            </button>
+        </div>
+    </form>
+
+    {% endif %}
+
+</div>
+
+</body>
+</html>
