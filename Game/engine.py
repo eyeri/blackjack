@@ -78,14 +78,12 @@ class GameEngine:
             
     def _evaluate_hand(self, player_hand: Hand, dealer_hand: Hand) -> str:
         """
-        [TODO] Helper function to compare ONE hand against the dealer.
-        This is crucial for Splitting later.
-        
-        Logic to implement:
-        - If player busts -> "LOSE"
-        - If dealer busts -> "WIN"
-        - Compare totals: Higher wins, equal is "PUSH"
-        - (Optional) Handle Blackjack priority
+        Decide WIN/LOSE/PUSH, set message, phase=ROUND_OVER.
+        Rules:
+        - player bust -> lose
+        - dealer bust -> win
+        - compare totals -> win/lose/push
+        - optional: blackjack checks
         """
         if player_hand.is_bust(): return "LOSE"
         if dealer_hand.is_bust(): return "WIN"
@@ -117,7 +115,6 @@ class GameEngine:
         return self.phase == Phase.PLAYER_TURN and not self.player.is_bust()
     
     def player_hit(self) -> None:
-
         """Player draws one card. If bust -> ROUND_OVER."""
         if self.phase != Phase.PLAYER_TURN: return
         
@@ -126,7 +123,7 @@ class GameEngine:
             self.outcome_texts["player"] = "LOSE"
             self.resolve_round()
         else:
-            self.message = f"Player hits ({self.player.best_total()}). HIT or STAND?"
+            self.message = f"Player hits ({self.player.base_total()}). HIT or STAND?"
 
 
     def player_stand(self) -> None:
@@ -163,9 +160,6 @@ class GameEngine:
         self.phase = Phase.ROUND_OVER
 
     def state_snapshot(self, hide_dealer_hole: bool = True) -> dict:
-        # [Fix #3] Hole card hiding should keep types consistent:
-        # - hide first dealer card as "??"
-        # - dealer_total should be None while hidden (not a string)
         dealer_codes = self.dealer.codes()
         if hide_dealer_hole and self.phase == Phase.PLAYER_TURN:
             dealer_display = ["??"] + dealer_codes[1:]
@@ -173,6 +167,14 @@ class GameEngine:
         else:
             dealer_display = dealer_codes
             dealer_total = self.dealer.best_total()
+
+        if hasattr(self, "second_hand"):
+            second_hand_cards = self.second_hand.codes()
+            second_hand_total = self.second_hand.base_total()
+        else:
+            second_hand_cards = []
+            second_hand_total = None
+        
 
         return {
             "phase": self.phase.name,
@@ -186,9 +188,9 @@ class GameEngine:
             "player_balance": self.player_balance,
             "current_bet": self.current_bet
         }
-    
+        
 
-    #Advanced Rule Extension
+    # Advanced Rule Extension
 
     def can_double_down(self) -> bool:
         return (
