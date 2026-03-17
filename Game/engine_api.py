@@ -43,6 +43,9 @@ ACTION_START = "START"
 ACTION_NEW   = "NEW"
 ACTION_HIT   = "HIT"
 ACTION_STAND = "STAND"
+ACTION_DOUBLE = "DOUBLE"
+ACTION_SPLIT = "SPLIT"
+ACTION_SURRENDER = "SURRENDER"
 
 # Session key
 SESSION_KEY_ENGINE_STATE = "engine_state"
@@ -99,32 +102,44 @@ def export_state(engine: GameEngine) -> Dict[str, Any]:
     No objects allowed in returned dict.
     """
     return {
+        "deck": [card.code() if hasattr(card, 'code') and callable(card.code) else card.code for card in engine.deck.cards],
+        "player_cards": engine.player.codes(),
+        "dealer_cards": engine.dealer.codes(),
+        "second_hand_cards": engine.second_hand.codes(), 
         "phase": engine.phase.name,
         "message": engine.message,
-        "outcome_text": getattr(engine, "outcome_text", ""),
-        "player_cards": hand_to_codes(engine.player),
-        "dealer_cards": hand_to_codes(engine.dealer),
-        "deck_cards": deck_to_codes(engine.deck),
+        "player_balance": engine.player_balance,         
+        "current_bet": engine.current_bet,
+        "hand_bets": engine.hand_bets,                   
+        "outcome_texts": engine.outcome_texts
     }
 
-def import_state(data: Dict[str, Any]) -> GameEngine:
+def import_state(state_dict: Dict[str, Any]) -> GameEngine:
     """
     Restore engine from a session dict.
     Must NOT introduce randomness here.
     """
-    g = GameEngine()
+    if not state_dict: return None
+    engine = GameEngine()
+    # restore hands & deck
+    engine.deck = codes_to_deck(state_dict["deck"])
+    engine.player = codes_to_hand(state_dict["player_cards"])
+    engine.dealer = codes_to_hand(state_dict["dealer_cards"])
+    engine.second_hand = codes_to_hand(state_dict.get("second_hand_cards", []))
 
     # restore phase/message/outcome
-    g.phase = Phase[data["phase"]]
-    g.message = data.get("message", "")
-    g.outcome_text = data.get("outcome_text", "")
+    engine.phase = Phase[state_dict["phase"]]
+    engine.message = state_dict["message"]
 
-    # restore hands & deck
-    g.player = codes_to_hand(data.get("player_cards", []))
-    g.dealer = codes_to_hand(data.get("dealer_cards", []))
-    g.deck = codes_to_deck(data.get("deck_cards", []))
+    balance_val = state_dict.get("player_balance", 1000)
+    if hasattr(engine, 'player_balance') and not callable(engine.player_balance):
+        engine.player_balance = balance_val
+        
+    engine.current_bet = state_dict.get("current_bet", 0)
+    engine.hand_bets = state_dict.get("hand_bets", {"player": 0, "second_hand": 0})
+    engine.outcome_texts = state_dict.get("outcome_texts", {})
 
-    return g
+    return engine
 
 
 # Actions (UI calls only these) [Old Version]
@@ -152,27 +167,34 @@ def import_state(data: Dict[str, Any]) -> GameEngine:
 
 # === !!!ADD/REPLACE apply_action skeleton!!! ===
 
-def apply_action(engine, action: str) -> None:
+def apply_action(engine: GameEngine, action: str, bet_amount: int = 100):
+    action = action.upper()
     """
     Thin dispatcher: UI action -> engine method call only.
     No learning logic. No rules beyond phase gating.
     """
-    act = (action or "").upper().strip()
+    action = action.upper().strip()
 
-    if act == ACTION_NEW:
-        engine.new_round()
-        return
+    if action == ACTION_NEW:
+        engine.new_round(bet_amount)
 
-    if engine.phase != Phase.PLAYER_TURN:
-        return
-
-    if act == ACTION_HIT:
+    elif action == ACTION_HIT: 
         engine.player_hit()
-        return
 
-    if act == ACTION_STAND:
+    elif action == ACTION_STAND: 
         engine.player_stand()
-        return
+
+    elif action == ACTION_DOUBLE: 
+        engine.player_double_down() 
+
+    elif action == ACTION_SURRENDER:
+        engine.player_surrender()
+
+    elif action == ACTION_NEW:
+        engine.new_round(bet_amount)
+
+    elif action == ACTION_SPLIT: 
+        engine.player_split()
 
     # Unknown action -> ignore
 
@@ -219,49 +241,38 @@ def apply_action(engine, action: str) -> None:
 #    - It can hide dealer hole card during PLAYER_TURN ("??")
 #    - It can provide button enable/disable states derived from engine.phase
 
-def get_view_state(engine, hide_dealer_hole: bool = True) -> dict[str, Any]:
+def get_view_state(engine: GameEngine) -> Dict[str, Any]:
     """
     Render model only (data for UI).
     Must not mutate engine. Must not contain tutorial/trainer logic.
     """
-    # TODO: read phase
-    current_phase: str = engine.phase
-
-    action_hit: bool = (current_phase == Phase.PLAYER_TURN)
-    action_stand: bool = (current_phase == Phase.PLAYER_TURN)
-    action_new: bool = True # can reset whenever you want
-
-
-
-    # TODO: compute player_total, dealer_total
-    player_total: int = engine.player.best_total()
-    dealer_total: int = engine.dealer.best_total()
-
-    # TODO: get card codes for player/dealer
-    dealer_cards: List[str] = hand_to_codes(engine.dealer)
-    player_cards: List[str] = hand_to_codes(engine.player)
-    
-
-
-    # TODO: hide dealer hole card if PLAYER_TURN
-    if (hide_dealer_hole and (engine.phase == Phase.PLAYER_TURN)):
-        dealer_cards = ["??"] + dealer_cards[1:]
+    dealer_display = engine.dealer.codes()
+    if engine.phase == Phase.PLAYER_TURN:
+        dealer_display = ["??"] + dealer_display[1:]
         dealer_total = None
-
-
-    buttons = {
-        "hit":  action_hit,  # TODO: phase-based
-        "stand": action_stand, # TODO: phase-based
-        "new":  action_new,   # You decided: NEW available without refresh
-    }
-
+    else:
+        dealer_total = engine.dealer.best_total()
+    
     return {
         "phase": engine.phase.name,
-        "message": engine.message,   # TODO: engine message if exists
-        "outcome": getattr(engine, "outcome_text", ""),   # TODO: outcome text if exists
-        "player_cards": player_cards,
-        "dealer_cards": dealer_cards,
-        "player_total": player_total,
+        "message": engine.message,
+        "player_cards": engine.player.codes(),
+        "dealer_cards": dealer_display,
+        "second_hand_cards": engine.second_hand.codes(), 
+        "player_total": engine.player.best_total(),
+        "second_hand_total": engine.second_hand.best_total() if engine.second_hand.cards else None,
         "dealer_total": dealer_total,
-        "buttons": buttons,
+        
+        
+        "player_balance": engine.player_balance,  
+        "current_bet": engine.current_bet,        
+        
+        "outcome_texts": engine.outcome_texts,
+        "buttons": {
+            "hit": engine.phase == Phase.PLAYER_TURN,
+            "stand": engine.phase == Phase.PLAYER_TURN,
+            "double": engine.can_double_down(),   
+            "split": engine.can_split(),         
+            "new": True
+        }
     }

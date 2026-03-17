@@ -19,6 +19,27 @@
             padding: 30px 20px 60px;
         }
 
+        .top-right-nav {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .btn-quit-fresh {
+            background: #c0392b;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-surrender {
+            background: #e67e22;
+            color: white;
+        }
+
         /* ── Header ── */
         .header {
             text-align: center;
@@ -343,6 +364,11 @@
     <div class="subtitle">Casino Card Game</div>
 </div>
 
+<div style="margin-bottom: 20px; display: flex; gap: 30px; font-size: 1.2rem; background: rgba(0,0,0,0.3); padding: 10px 30px; border-radius: 50px; border: 1px solid #f0d060;">
+    <div>💰 Balance: <span style="color: #f0d060;">${{ state.player_balance }}</span></div>
+    <div>🪙 Current Bet: <span style="color: #f0d060;">${{ state.current_bet }}</span></div>
+</div>
+
 <div class="table">
 
     {% if not started %}
@@ -365,7 +391,7 @@
 
         <form method="post">
             {% csrf_token %}
-            <button class="btn btn-start" type="submit" name="action" value="START">Deal Cards</button>
+            <button class="btn btn-start" type="submit" name="action" value="NEW">Deal Cards</button>
         </form>
     </div>
 
@@ -393,7 +419,6 @@
 
     <!-- Dealer zone -->
     <div class="zone-label">Dealer's Hand</div>
-
     {% if state.dealer_total is not None %}
         <div class="score-badge">Total: {{ state.dealer_total }}</div>
     {% else %}
@@ -407,91 +432,89 @@
                     <div class="card hidden-card"></div>
                 {% else %}
                     {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
-                        {% if suit|upper == "H" or suit|upper == "D" %}
-                            <div class="card">
-                                <div class="card-corner">
-                                    <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                                    <div class="card-suit-small red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
-                                </div>
-                                <div class="card-suit-center red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
-                                <div class="card-corner bottom">
-                                    <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                                    <div class="card-suit-small red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
-                                </div>
+                        <div class="card">
+                            <div class="card-corner {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                                <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
                             </div>
-                        {% else %}
-                            <div class="card">
-                                <div class="card-corner">
-                                    <div class="card-rank black">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                                    <div class="card-suit-small black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
-                                </div>
-                                <div class="card-suit-center black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
-                                <div class="card-corner bottom">
-                                    <div class="card-rank black">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                                    <div class="card-suit-small black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
-                                </div>
+                            <div class="card-suit-center {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                                {% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}
                             </div>
-                        {% endif %}
+                            <div class="card-corner bottom {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                                <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
+                            </div>
+                        </div>
                     {% endwith %}
                 {% endif %}
             {% endfor %}
-        {% else %}
-            <div class="empty-hand">No cards yet</div>
         {% endif %}
     </div>
 
     <hr class="divider">
 
-    <!-- Player zone -->
+    <!-- User zone -->
     <div class="zone-label">Your Hand</div>
 
     {% if state.player_total %}
-        {% if state.player_total > 21 %}
-            <div class="score-badge busted">Total: {{ state.player_total }} — BUST</div>
-        {% else %}
-            <div class="score-badge">Total: {{ state.player_total }}</div>
-        {% endif %}
+        <div class="score-badge {% if state.player_total > 21 %}busted{% endif %}">
+            Total: {{ state.player_total }}{% if state.player_total > 21 %} — BUST{% endif %}
+        </div>
     {% endif %}
 
     <div class="hand">
         {% if state.player_cards %}
             {% for code in state.player_cards %}
                 {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
-                    {% if suit|upper == "H" or suit|upper == "D" %}
-                        <div class="card">
-                            <div class="card-corner">
-                                <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                                <div class="card-suit-small red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
-                            </div>
-                            <div class="card-suit-center red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
-                            <div class="card-corner bottom">
-                                <div class="card-rank red">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                                <div class="card-suit-small red">{% if suit == "H" %}♥{% else %}♦{% endif %}</div>
-                            </div>
+                    <div class="card">
+                        <div class="card-corner {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                            <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                            <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
                         </div>
-                    {% else %}
-                        <div class="card">
-                            <div class="card-corner">
-                                <div class="card-rank black">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                                <div class="card-suit-small black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
-                            </div>
-                            <div class="card-suit-center black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
-                            <div class="card-corner bottom">
-                                <div class="card-rank black">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                                <div class="card-suit-small black">{% if suit == "S" %}♠{% else %}♣{% endif %}</div>
-                            </div>
+                        <div class="card-suit-center {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                            {% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}
                         </div>
-                    {% endif %}
+                        <div class="card-corner bottom {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                            <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                            <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
+                        </div>
+                    </div>
                 {% endwith %}
             {% endfor %}
-        {% else %}
-            <div class="empty-hand">No cards yet</div>
         {% endif %}
     </div>
 
+    {% if state.second_hand_cards %}
+    <hr class="divider">
+    <div class="zone-label" style="color: #f0d060;">Second Hand</div>
+    
+    {% if state.second_hand_total %}
+        <div class="score-badge">Total: {{ state.second_hand_total }}</div>
+    {% endif %}
+
+    <div class="hand">
+        {% for code in state.second_hand_cards %}
+            {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
+                <div class="card">
+                    <div class="card-corner {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                        <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                        <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
+                    </div>
+                    <div class="card-suit-center {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                        {% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}
+                    </div>
+                    <div class="card-corner bottom {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                        <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                        <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
+                    </div>
+                </div>
+            {% endwith %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <hr class="divider">
 
-    <!-- Message -->
     {% if state.message %}
     <div class="message-box">
         <span class="msg-icon">💬</span>
@@ -513,9 +536,27 @@
                 {% if not state.buttons.stand %}disabled{% endif %}>Stand
             </button>
 
+            <button class="btn {% if state.buttons.split %}btn-hit{% else %}btn-disabled{% endif %}" 
+                style="filter: hue-rotate(200deg);"
+                type="submit" name="action" value="SPLIT" 
+                {% if not state.buttons.split %}disabled{% endif %}>Split
+            </button>
+
+            <button class="btn" style="background: #e67e22;" 
+                    type="submit" name="action" value="SURRENDER"
+                    {% if state.player_cards|length != 2 or state.phase == "ROUND_OVER" %}disabled{% endif %}>
+                Surrender (50% Refund)
+            </button>
+
             <button class="btn {% if state.buttons.new %}btn-new{% else %}btn-disabled{% endif %}" 
                 type="submit" name="action" value="NEW" 
                 {% if not state.buttons.new %}disabled{% endif %}>New Round
+            </button>
+        </div>
+
+        <div class="top-right-nav">
+            <button type="submit" name="action" value="START" class="btn-quit-fresh">
+                QUIT & FRESH START
             </button>
         </div>
     </form>
