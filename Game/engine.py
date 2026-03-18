@@ -14,7 +14,6 @@ class Phase(Enum):
     DEALER_TURN = auto()
     ROUND_OVER = auto()
 
-
 class GameEngine:
     """
     Milestone 2 (no UI):
