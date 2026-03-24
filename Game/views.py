@@ -1,29 +1,3 @@
-# ===================== CHANGES (Milestone 2 -> Game-focused Milestone 3) =====================
-# 1) Removed "one-action only" test harness:
-#    - Deleted session keys: "locked", "preserve_once", "game_state", "deck_serialized", "message"
-#    - Deleted logic that forced ONE HIT/STAND then locked the buttons and required F5 refresh.
-#
-# 2) Switched to engine_api as the single source of truth for session state:
-#    - BEFORE: views.py created/restored engine manually using state_snapshot + deck_serialized
-#    - AFTER : views.py always calls:
-#             - engine_api.import_state(session["engine_state"])
-#             - engine_api.apply_action(engine, ACTION)
-#             - engine_api.export_state(engine) -> session["engine_state"]
-#             - engine_api.get_view_state(engine) -> UI render model
-#
-# 3) Unified session storage into ONE key:
-#    - BEFORE: multiple keys ("game_state" + "deck_serialized" + others)
-#    - AFTER : single key "engine_state" (JSON-serializable dict produced by engine_api.export_state)
-#
-# 4) Action routing became explicit and consistent:
-#    - BEFORE: action values were lowercase strings ("start", "hit", "stand")
-#    - AFTER : action values are normalized (e.g., "START", "HIT", "STAND", "NEW")
-#
-# 5) Added NEW round flow without page refresh:
-#    - "NEW" action calls engine.new_round() via engine_api.apply_action
-#    - The "loop" is handled by repeated HTTP requests + session restore (web request cycle).
-# =============================================================================================
-
 from django.shortcuts import render, redirect
 from .engine import GameEngine
 from . import engine_api
