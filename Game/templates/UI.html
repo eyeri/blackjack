@@ -1,3 +1,134 @@
+<!--
+Milestone 4 UI Direction
+
+This UI is no longer a single-player-only screen.
+The engine and view-state model have changed.
+
+New gameplay requirements:
+1. Multiplayer must run on one shared page.
+2. Tutorial mode must be a separate entry path from the start screen.
+3. Betting must happen before cards are dealt.
+4. Each player must have an isolated section for status and actions.
+5. The dealer area is shared visually by all players.
+
+Important data-model change:
+- Old UI expected single-player fields such as:
+  state.player_cards
+  state.player_total
+  state.player_balance
+  state.current_bet
+  state.second_hand_cards
+
+- New UI must render using:
+  state.players
+  Each player has:
+    player.label
+    player.balance
+    player.hands
+  Each hand has:
+    hand.cards
+    hand.total
+    hand.bet
+    hand.outcome
+    hand.is_turn
+    hand.can_act
+
+New start-screen requirements:
+- Provide normal game entry.
+- Provide tutorial mode entry.
+- Provide player count selection for normal mode.
+- Tutorial mode always starts as 1 player.
+
+New betting-phase requirements:
+- NEW no longer means "deal immediately."
+- NEW now enters betting setup.
+- During BETTING phase, show one bet input per player.
+- After all bets are entered, submit DEAL to start the round.
+
+Dealer area requirements:
+- Dealer hand is shown once at the top.
+- While players are still acting, dealer hole card must remain hidden.
+- After dealer turn / round over, reveal full dealer hand and total.
+
+Player-area requirements:
+- Render every player section in a loop.
+- Inside each player section, render every hand in a loop.
+- Split hands must appear as separate hands inside the same player section.
+- Show current balance and current bet for each hand.
+- Show result text for each hand after resolution.
+
+Turn-ownership requirements:
+- Clearly highlight the active player / active hand.
+- Only the active player’s action controls should feel enabled.
+- Other players should still see the table, but must not appear to control the turn.
+
+Tutorial requirements:
+- Tutorial mode must show a tutorial/help panel.
+- Show explanation text and recommended action text.
+- Recommendation text is advisory only.
+- Do not implement game rules in the template.
+
+Buttons required:
+- Start Normal Game
+- Start Tutorial Mode
+- Deal Cards
+- Hit
+- Stand
+- Double
+- Split
+- Surrender
+- New Round Setup
+- Quit & Fresh Start
+
+What must be removed from the previous UI logic:
+- Direct reliance on state.player_cards / state.player_total
+- Direct reliance on one global player balance block
+- Direct reliance on single second_hand section as the main structure
+- Any assumption that NEW immediately deals cards
+- Any assumption that only one player exists on the page
+
+Design priority:
+1. turn clarity
+2. betting clarity
+3. multiplayer readability
+4. tutorial visibility
+5. reuse of existing card visuals and table theme where possible
+
+fixed style for less error:
+<style>
+.player-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px;
+    border-radius: 16px;
+}
+
+.hands-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.hand-block {
+    min-width: 240px;
+    flex: 1 1 280px;
+    padding: 12px;
+    border-radius: 12px;
+}
+
+.hand-block.active-turn {
+    outline: 2px solid gold;
+}
+
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+</style>
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
