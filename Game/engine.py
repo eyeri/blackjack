@@ -45,6 +45,11 @@ These parts are already moved to the new structure:
 - state_snapshot()
 - _initial_deal_all()
 - resolve_round()
+- player_hit()
+- player_stand()
+- player_double_down()
+- player_surrender()
+- player_split()
 
 ----------------------------------------------------------------------------
 What still must be rewritten
@@ -55,13 +60,6 @@ What still must be rewritten
 - can_double_down()
 - can_split()
 - can_surrender()
-
-2. Player actions
-- player_hit()
-- player_stand()
-- player_double_down()
-- player_surrender()
-- player_split()
 
 ----------------------------------------------------------------------------
 What should no longer be the main flow
@@ -94,6 +92,7 @@ If the answer is no, the function is still using the old engine model.
 from __future__ import annotations
 from cmath import phase
 from enum import Enum, auto
+from typing import List
 from typing import Dict, Any, Optional
 
 from .deck import Deck
@@ -373,7 +372,7 @@ class GameEngine:
         raise NotImplementedError
 
     # ----------------------------
-    # player actions (TODO)
+    # player actions
     # ----------------------------
 
     def player_hit(self) -> None:
@@ -387,7 +386,10 @@ class GameEngine:
         hand.add(self.deck.draw())
         if hand.is_bust():
             self._set_current_outcome("LOSE")
-        self._advance_turn()
+            self.current_hand_index += 1
+            self._advance_turn()
+        else:
+            self.message = f"Player {self.current_player_index + 1} hits ({hand.best_total()}). HIT or STAND?"
 
 
     def player_stand(self) -> None:
@@ -396,45 +398,31 @@ class GameEngine:
             return
 
         self._set_current_outcome("STAND")
+        self.current_hand_index += 1
         self._advance_turn()
 
     def player_double_down(self) -> None:
-        """
-        Player doubles the bet, draws exactly one card,
-        and then automatically stands.
-        """
-
-        """
-        [TODO] Double the bet, draw one card, and stand.
-        
-        Logic to implement:
-        1. Check if doubling is allowed (can_double_down)
-        2. Check if player has enough balance for the additional bet
-        3. Deduct additional bet from balance, double current_bet
-        4. Draw EXACTLY one card
-        5. Trigger resolution (resolve_round or player_stand)
-        """
-        
-
         if not self.can_double_down(): 
             self.message = "Double down is not allowed."
             return
         
-        hand = self._current_hand()
+        
         p = self.current_player_index
         h = self.current_hand_index
-
         bet = self.player_bets[p][h]
-        self.player_balances[p] -= bet
-        self.player_bets[p][h] *= 2
 
+        self.player_balances[p] -= bet
+        self.player_bets[p][h] += bet
+
+        hand = self.players[p][h]
         hand.add(self.deck.draw())
 
         if hand.is_bust():
-            self._set_current_outcome("LOSE")
+            self.outcome_texts[p][h] = "LOSE"
         else:
-            self._set_current_outcome("STAND")
+            self.outcome_texts[p][h] = "STAND"
         
+        self.current_hand_index += 1
         self._advance_turn()
 
     def player_surrender(self) -> None:
@@ -448,9 +436,12 @@ class GameEngine:
 
         bet = self.player_bets[p][h]
 
-        self.player_balances[p] += (bet//2)
+        refund = bet // 2
+        self.player_balances[p] += refund
 
         self._set_current_outcome("SURRENDER")
+
+        self.current_hand_index += 1
         self._advance_turn()
 
 
@@ -483,7 +474,7 @@ class GameEngine:
 
         
     # ----------------------------
-    # dealer + resolve (TODO)
+    # dealer + resolve 
     # ----------------------------
 
     def run_dealer_turn(self) -> None:
