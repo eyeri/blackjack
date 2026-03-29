@@ -379,21 +379,24 @@ class GameEngine:
     def player_hit(self) -> None:
 
         """Player draws one card. If bust -> ROUND_OVER."""
-        if self.phase != Phase.PLAYER_TURN: return
-        
-        self.player.add(self.deck.draw())
-        if self.player.is_bust():
-            self.outcome_texts["player"] = "LOSE"
-            self.resolve_round()
-        else:
-            self.message = f"Player hits ({self.player.best_total()}). HIT or STAND?"
+        if not self.can_hit(): 
+            self.message = "HIT is not allowed right now"
+            return
+
+        hand = self._current_hand()
+        hand.add(self.deck.draw())
+        if hand.is_bust():
+            self._set_current_outcome("LOSE")
+        self._advance_turn()
 
 
     def player_stand(self) -> None:
-        if self.phase != Phase.PLAYER_TURN: return
-        self.phase = Phase.DEALER_TURN
-        self.run_dealer_turn()
-        self.resolve_round()
+        if not self.can_stand(): 
+            self.message = "STAND is not allowed right now"
+            return
+
+        self._set_current_outcome("STAND")
+        self._advance_turn()
 
     def player_double_down(self) -> None:
         """
@@ -411,48 +414,73 @@ class GameEngine:
         4. Draw EXACTLY one card
         5. Trigger resolution (resolve_round or player_stand)
         """
-        if not self.can_double_down(): return
+        
 
         if not self.can_double_down(): 
             self.message = "Double down is not allowed."
             return
         
-        self.player_balance -= self.current_bet
-        self.current_bet *= 2
-        self.hand_bets["player"] = self.current_bet 
-        
-        self.player.add(self.deck.draw())
-        
-        if self.player.is_bust():
-            self.outcome_texts["player"] = "LOSE"
-            self.resolve_round()
+        hand = self._current_hand()
+        p = self.current_player_index
+        h = self.current_hand_index
+
+        bet = self.player_bets[p][h]
+        self.player_balances[p] -= bet
+        self.player_bets[p][h] *= 2
+
+        hand.add(self.deck.draw())
+
+        if hand.is_bust():
+            self._set_current_outcome("LOSE")
         else:
-            self.player_stand()
+            self._set_current_outcome("STAND")
+        
+        self._advance_turn()
 
     def player_surrender(self) -> None:
     # only able at first turn
-        if self.phase == Phase.PLAYER_TURN and len(self.player.cards) == 2:
-            refund = self.current_bet // 2
-            self.player_balance += refund
-            self.outcome_texts["player"] = "SURRENDER"
-            self.phase = Phase.ROUND_OVER
-            self.message = f"Surrendered. ${refund} returned to your balance."
+        if not self.can_surrender():
+            self.message = "SURRENDER IS NOT ALLOWED"
+            return
+        
+        p = self.current_player_index
+        h = self.current_hand_index
+
+        bet = self.player_bets[p][h]
+
+        self.player_balances[p] += (bet//2)
+
+        self._set_current_outcome("SURRENDER")
+        self._advance_turn()
+
 
     def player_split(self) -> None:
         if not self.can_split():
             self.message = "INVALID action: SPLIT not allowed"
             return
 
-        self.second_hand.cards = []
+        p = self.current_player_index
+        h = self.current_hand_index
 
-        card = self.player.cards.pop()
-        self.second_hand.add(card)
+        hand = self._current_hand()
+        bet = self.player_bets[p][h]
 
-        self.player.add(self.deck.draw())
-        self.second_hand.add(self.deck.draw())
+        new_hand = Hand()
 
-        self.hand_bets["second_hand"] = self.hand_bets["player"]
-        self.message = "Hand split into 2 hands"
+        card = hand.cards.pop()
+        new_hand.add(card)
+
+        hand.add(self.deck.draw())
+        new_hand.add(self.deck.draw())
+
+        self.players[p].insert(h + 1, new_hand)
+        self.player_bets[p].insert(h + 1, bet)
+        self.outcome_texts[p].insert(h + 1, "")
+
+        self.player_balances[p] -= bet
+
+        self.message = self._turn_message()
+
         
     # ----------------------------
     # dealer + resolve (TODO)
