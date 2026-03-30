@@ -345,26 +345,26 @@ class GameEngine:
     # ----------------------------   
 
     def can_hit(self) -> bool:
-        return self.phase == Phase.PLAYER_TURN and not self.player.is_bust()
+        return self.phase == Phase.PLAYER_TURN and not self._current_hand().is_bust()
     
     def can_stand(self) -> bool:
         """Return True if STAND is allowed now."""
-        return self.phase == Phase.PLAYER_TURN and not self.player.is_bust()
+        return self.phase == Phase.PLAYER_TURN and not self._current_hand().is_bust()
     
     def can_double_down(self) -> bool:
         return (
             self.phase == Phase.PLAYER_TURN 
-            and len(self.player.cards) == 2
-            and not self.player.is_bust()
-            and self.player_balance >= self.current_bet
+            and len(self._current_hand().cards) == 2
+            and not self._current_hand().is_bust()
+            and self.player_balances >= self._current_bet()
         )
     
     def can_split(self) -> bool:
         return (
             self.phase == Phase.PLAYER_TURN
-            and len(self.player.cards) == 2
-            and self.player.cards[0].rank == self.player.cards[1].rank
-            and self.player_balance >= self.current_bet
+            and len(self._current_hand().cards) == 2
+            and self._current_hand().cards[0].rank == self._current_hand().cards[1].rank
+            and self.player_balances >= self._current_bet()
         )
     
     def can_surrender(self) -> bool:
