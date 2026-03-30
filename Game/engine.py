@@ -369,7 +369,10 @@ class GameEngine:
     
     def can_surrender(self) -> bool:
         #TODO
-        raise NotImplementedError
+        return (
+            self.phase == Phase.PLAYER_TURN
+            and len(self._current_hand().cards) == 2
+        )
 
     # ----------------------------
     # player actions
