@@ -356,7 +356,7 @@ class GameEngine:
             self.phase == Phase.PLAYER_TURN 
             and len(self._current_hand().cards) == 2
             and not self._current_hand().is_bust()
-            and self.player_balances >= self._current_bet()
+            and self.player_balances[self.current_player_index] >= self._current_bet()
         )
     
     def can_split(self) -> bool:
@@ -364,7 +364,7 @@ class GameEngine:
             self.phase == Phase.PLAYER_TURN
             and len(self._current_hand().cards) == 2
             and self._current_hand().cards[0].rank == self._current_hand().cards[1].rank
-            and self.player_balances >= self._current_bet()
+            and self.player_balances[self.current_player_index] >= self._current_bet()
         )
     
     def can_surrender(self) -> bool:
