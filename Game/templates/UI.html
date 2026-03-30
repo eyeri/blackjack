@@ -59,7 +59,7 @@ Player-area requirements:
 
 Turn-ownership requirements:
 - Clearly highlight the active player / active hand.
-- Only the active player’s action controls should feel enabled.
+- Only the active player's action controls should feel enabled.
 - Other players should still see the table, but must not appear to control the turn.
 
 Tutorial requirements:
@@ -166,11 +166,6 @@ fixed style for less error:
             cursor: pointer;
         }
 
-        .btn-surrender {
-            background: #e67e22;
-            color: white;
-        }
-
         /* ── Header ── */
         .header {
             text-align: center;
@@ -194,7 +189,7 @@ fixed style for less error:
         /* ── Table felt ── */
         .table {
             width: 100%;
-            max-width: 680px;
+            max-width: 820px;
             background: radial-gradient(ellipse at center, #1e6b30 0%, #155022 100%);
             border-radius: 20px;
             border: 3px solid #8b6914;
@@ -220,7 +215,7 @@ fixed style for less error:
         .start-screen p {
             color: #a0c080;
             font-size: 0.95rem;
-            margin-bottom: 36px;
+            margin-bottom: 28px;
             letter-spacing: 1px;
         }
         .start-rules {
@@ -229,7 +224,7 @@ fixed style for less error:
             border-radius: 10px;
             padding: 16px 24px;
             margin: 0 auto 30px;
-            max-width: 360px;
+            max-width: 400px;
             text-align: left;
         }
         .start-rules h3 {
@@ -254,6 +249,30 @@ fixed style for less error:
             left: 0;
             font-size: 0.6rem;
             top: 3px;
+        }
+        .player-count-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            color: #a0c080;
+        }
+        .player-count-row select {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(240,208,96,0.4);
+            color: #f0d060;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-family: 'Georgia', serif;
+            font-size: 0.95rem;
+        }
+        .start-btn-row {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
         }
 
         /* ── Zone labels ── */
@@ -283,7 +302,7 @@ fixed style for less error:
             padding: 3px 14px;
             font-size: 0.85rem;
             color: #f0d060;
-            margin-bottom: 14px;
+            margin-bottom: 10px;
         }
         .score-badge.busted {
             border-color: #e05050;
@@ -299,7 +318,7 @@ fixed style for less error:
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
             min-height: 110px;
             align-items: flex-start;
         }
@@ -384,15 +403,15 @@ fixed style for less error:
         }
         .message-box .msg-icon { font-size: 1.1rem; }
 
-        /* ── Outcome banner ── */
+        /* ── Outcome banner (per hand) ── */
         .outcome-banner {
             text-align: center;
-            padding: 14px;
-            border-radius: 10px;
-            font-size: 1.5rem;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 1rem;
             font-weight: bold;
             letter-spacing: 2px;
-            margin-bottom: 22px;
+            margin-bottom: 10px;
             animation: fadeIn 0.4s ease;
         }
         @keyframes fadeIn {
@@ -409,6 +428,7 @@ fixed style for less error:
             justify-content: center;
             gap: 12px;
             flex-wrap: wrap;
+            margin-top: 18px;
         }
 
         .btn {
@@ -430,10 +450,27 @@ fixed style for less error:
             background: linear-gradient(135deg, #f0d060, #c8a020);
             color: #1a1a1a;
             font-size: 1.05rem;
-            padding: 15px 50px;
+            padding: 15px 40px;
             box-shadow: 0 4px 16px rgba(240,208,96,0.35);
         }
-        .btn-start:hover { background: linear-gradient(135deg, #f8e070, #d8b030); box-shadow: 0 6px 20px rgba(240,208,96,0.5); }
+        .btn-start:hover { background: linear-gradient(135deg, #f8e070, #d8b030); }
+
+        .btn-tutorial {
+            background: linear-gradient(135deg, #7040c0, #4a2080);
+            color: #fff;
+            font-size: 1.05rem;
+            padding: 15px 40px;
+            box-shadow: 0 4px 16px rgba(120,60,200,0.3);
+        }
+        .btn-tutorial:hover { background: linear-gradient(135deg, #8050d0, #5a3090); }
+
+        .btn-deal {
+            background: linear-gradient(135deg, #f0d060, #c8a020);
+            color: #1a1a1a;
+            padding: 13px 40px;
+            box-shadow: 0 4px 16px rgba(240,208,96,0.35);
+        }
+        .btn-deal:hover { background: linear-gradient(135deg, #f8e070, #d8b030); }
 
         .btn-hit {
             background: linear-gradient(135deg, #3a9a50, #226632);
@@ -448,6 +485,27 @@ fixed style for less error:
             box-shadow: 0 4px 12px rgba(180,40,40,0.3);
         }
         .btn-stand:hover { background: linear-gradient(135deg, #d04040, #9a2828); }
+
+        .btn-double {
+            background: linear-gradient(135deg, #c07020, #804010);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(180,100,30,0.3);
+        }
+        .btn-double:hover { background: linear-gradient(135deg, #d08030, #905020); }
+
+        .btn-split {
+            background: linear-gradient(135deg, #2080c0, #104880);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(30,120,200,0.3);
+        }
+        .btn-split:hover { background: linear-gradient(135deg, #3090d0, #205890); }
+
+        .btn-surrender {
+            background: linear-gradient(135deg, #e06020, #904010);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(200,80,30,0.3);
+        }
+        .btn-surrender:hover { background: linear-gradient(135deg, #f07030, #a05020); }
 
         .btn-new {
             background: linear-gradient(135deg, #4060c0, #243880);
@@ -486,6 +544,153 @@ fixed style for less error:
             letter-spacing: 1px;
             padding: 12px 0;
         }
+
+        /* ── Player section (from spec) ── */
+        .player-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 16px;
+            border-radius: 16px;
+            background: rgba(0,0,0,0.15);
+            border: 1px solid rgba(160,192,128,0.15);
+        }
+        .player-section.active-player {
+            border-color: rgba(240,208,96,0.5);
+            background: rgba(0,0,0,0.25);
+        }
+        .player-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #a0c080;
+            letter-spacing: 1px;
+        }
+        .player-section-header .player-label {
+            font-size: 0.9rem;
+            color: #f0d060;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* ── Hands wrap (from spec) ── */
+        .hands-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        /* ── Hand block (from spec) ── */
+        .hand-block {
+            min-width: 240px;
+            flex: 1 1 280px;
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.15);
+        }
+        .hand-block.active-turn {
+            outline: 2px solid gold;
+            background: rgba(0,0,0,0.25);
+        }
+        .hand-meta {
+            font-size: 0.8rem;
+            color: #a0c080;
+            margin-bottom: 8px;
+            display: flex;
+            gap: 12px;
+        }
+
+        /* ── Action row (from spec) ── */
+        .action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .action-row .btn {
+            padding: 9px 18px;
+            font-size: 0.82rem;
+            min-width: 80px;
+        }
+
+        /* ── Betting phase ── */
+        .betting-section {
+            margin-bottom: 20px;
+        }
+        .betting-section h3 {
+            color: #f0d060;
+            font-size: 0.85rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .bet-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 360px;
+            margin: 0 auto 24px;
+        }
+        .bet-input-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(0,0,0,0.2);
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(240,208,96,0.2);
+        }
+        .bet-input-row label {
+            color: #f0d060;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            min-width: 80px;
+        }
+        .bet-input-row input[type=number] {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(240,208,96,0.4);
+            color: #f0d060;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'Georgia', serif;
+            font-size: 0.95rem;
+            width: 100px;
+        }
+        .bet-balance {
+            font-size: 0.8rem;
+            color: #a0c080;
+        }
+
+        /* ── Tutorial panel ── */
+        .tutorial-panel {
+            background: rgba(80,40,120,0.25);
+            border: 1px solid rgba(160,100,220,0.4);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+        .tutorial-panel h3 {
+            color: #c080ff;
+            font-size: 0.8rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        .tutorial-panel .tutorial-advice {
+            font-size: 0.95rem;
+            color: #e0c0ff;
+        }
+        .tutorial-panel .advice-label {
+            font-size: 0.75rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #a070d0;
+            margin-bottom: 4px;
+        }
     </style>
 </head>
 <body>
@@ -493,11 +698,6 @@ fixed style for less error:
 <div class="header">
     <h1>Blackjack</h1>
     <div class="subtitle">Casino Card Game</div>
-</div>
-
-<div style="margin-bottom: 20px; display: flex; gap: 30px; font-size: 1.2rem; background: rgba(0,0,0,0.3); padding: 10px 30px; border-radius: 50px; border: 1px solid #f0d060;">
-    <div>💰 Balance: <span style="color: #f0d060;">${{ state.player_balance }}</span></div>
-    <div>🪙 Current Bet: <span style="color: #f0d060;">${{ state.current_bet }}</span></div>
 </div>
 
 <div class="table">
@@ -512,17 +712,74 @@ fixed style for less error:
         <div class="start-rules">
             <h3>How to Play</h3>
             <ul>
-                <li>You and the dealer each start with 2 cards</li>
+                <li>Players and the dealer each start with 2 cards</li>
                 <li>Hit to draw another card</li>
                 <li>Stand to end your turn</li>
                 <li>Go over 21 and you bust — dealer wins</li>
                 <li>Dealer must hit until reaching 17 or higher</li>
+                <li>Split pairs into two separate hands</li>
+                <li>Double down to double your bet for one card</li>
+                <li>Surrender to reclaim half your bet</li>
             </ul>
         </div>
 
         <form method="post">
             {% csrf_token %}
-            <button class="btn btn-start" type="submit" name="action" value="NEW">Deal Cards</button>
+            <div class="player-count-row">
+                <label for="num_players">Number of Players:</label>
+                <select name="num_players" id="num_players">
+                    <option value="1">1 Player</option>
+                    <option value="2">2 Players</option>
+                    <option value="3">3 Players</option>
+                    <option value="4">4 Players</option>
+                </select>
+            </div>
+            <div class="start-btn-row">
+                <button class="btn btn-start" type="submit" name="action" value="NEW">Start Normal Game</button>
+                <button class="btn btn-tutorial" type="submit" name="action" value="TUTORIAL">Start Tutorial Mode</button>
+            </div>
+        </form>
+    </div>
+
+    {% elif state.phase == "BETTING" %}
+    <!-- ══ BETTING PHASE ══ -->
+
+    {% if state.phase %}
+    <div style="text-align:center; margin-bottom: 16px;">
+        <span class="phase-pill">{{ state.phase|title }}</span>
+    </div>
+    {% endif %}
+
+    {% if state.message %}
+    <div class="message-box">
+        <span class="msg-icon">💬</span>
+        {{ state.message }}
+    </div>
+    {% endif %}
+
+    <div class="betting-section">
+        <h3>Place Your Bets</h3>
+        <form method="post">
+            {% csrf_token %}
+            <div class="bet-inputs">
+                {% for player in state.players %}
+                <div class="bet-input-row">
+                    <label>{{ player.label }}</label>
+                    <input type="number" name="bet_{{ forloop.counter0 }}" value="100" min="1" max="{{ player.balance }}">
+                    <span class="bet-balance">Balance: ${{ player.balance }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-deal" type="submit" name="action" value="DEAL">Deal Cards</button>
+            </div>
+        </form>
+    </div>
+
+    <div style="text-align:center; margin-top: 20px;">
+        <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" name="action" value="START" class="btn-quit-fresh">Quit & Fresh Start</button>
         </form>
     </div>
 
@@ -530,22 +787,24 @@ fixed style for less error:
     <!-- ══ GAME SCREEN ══ -->
 
     {% if state.phase %}
-    <div style="text-align:center;">
+    <div style="text-align:center; margin-bottom: 16px;">
         <span class="phase-pill">{{ state.phase|title }}</span>
     </div>
     {% endif %}
 
-    <!-- Outcome banner -->
-    {% if state.outcome %}
-        {% with outcome_lower=state.outcome|lower %}
-            {% if "win" in outcome_lower or "blackjack" in outcome_lower %}
-                <div class="outcome-banner outcome-win">🏆 {{ state.outcome }}</div>
-            {% elif "bust" in outcome_lower or "lose" in outcome_lower or "dealer" in outcome_lower %}
-                <div class="outcome-banner outcome-lose">💔 {{ state.outcome }}</div>
-            {% else %}
-                <div class="outcome-banner outcome-push">🤝 {{ state.outcome }}</div>
-            {% endif %}
-        {% endwith %}
+    {% if state.is_tutorial %}
+    <!-- Tutorial panel -->
+    <div class="tutorial-panel">
+        <h3>Tutorial Mode</h3>
+        {% if state.tutorial_message %}
+        <div class="advice-label">Tip</div>
+        <div class="tutorial-advice">{{ state.tutorial_message }}</div>
+        {% endif %}
+        {% if state.advice %}
+        <div class="advice-label" style="margin-top: 10px;">Recommended Action</div>
+        <div class="tutorial-advice">{{ state.advice }}</div>
+        {% endif %}
+    </div>
     {% endif %}
 
     <!-- Dealer zone -->
@@ -553,7 +812,7 @@ fixed style for less error:
     {% if state.dealer_total is not None %}
         <div class="score-badge">Total: {{ state.dealer_total }}</div>
     {% else %}
-        <div class="score-badge hidden">Total: {{ state.dealer_total|default:"?" }}</div>
+        <div class="score-badge hidden">Total: ?</div>
     {% endif %}
 
     <div class="hand">
@@ -579,70 +838,10 @@ fixed style for less error:
                     {% endwith %}
                 {% endif %}
             {% endfor %}
+        {% else %}
+            <div class="empty-hand">No cards yet</div>
         {% endif %}
     </div>
-
-    <hr class="divider">
-
-    <!-- User zone -->
-    <div class="zone-label">Your Hand</div>
-
-    {% if state.player_total %}
-        <div class="score-badge {% if state.player_total > 21 %}busted{% endif %}">
-            Total: {{ state.player_total }}{% if state.player_total > 21 %} — BUST{% endif %}
-        </div>
-    {% endif %}
-
-    <div class="hand">
-        {% if state.player_cards %}
-            {% for code in state.player_cards %}
-                {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
-                    <div class="card">
-                        <div class="card-corner {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                            <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                            <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
-                        </div>
-                        <div class="card-suit-center {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                            {% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}
-                        </div>
-                        <div class="card-corner bottom {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                            <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                            <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
-                        </div>
-                    </div>
-                {% endwith %}
-            {% endfor %}
-        {% endif %}
-    </div>
-
-    {% if state.second_hand_cards %}
-    <hr class="divider">
-    <div class="zone-label" style="color: #f0d060;">Second Hand</div>
-    
-    {% if state.second_hand_total %}
-        <div class="score-badge">Total: {{ state.second_hand_total }}</div>
-    {% endif %}
-
-    <div class="hand">
-        {% for code in state.second_hand_cards %}
-            {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
-                <div class="card">
-                    <div class="card-corner {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                        <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                        <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
-                    </div>
-                    <div class="card-suit-center {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                        {% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}
-                    </div>
-                    <div class="card-corner bottom {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                        <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
-                        <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
-                    </div>
-                </div>
-            {% endwith %}
-        {% endfor %}
-    </div>
-    {% endif %}
 
     <hr class="divider">
 
@@ -653,42 +852,108 @@ fixed style for less error:
     </div>
     {% endif %}
 
-    <!-- Action buttons -->
+    <!-- Player sections -->
+    {% for player in state.players %}
+    <div class="player-section {% if player.is_active %}active-player{% endif %}">
+        <div class="player-section-header">
+            <span class="player-label">{{ player.label }}</span>
+            <span>Balance: ${{ player.balance }}</span>
+        </div>
+
+        <div class="hands-wrap">
+            {% for hand in player.hands %}
+            <div class="hand-block {% if hand.is_turn %}active-turn{% endif %}">
+
+                <div class="hand-meta">
+                    <span>Bet: ${{ hand.bet }}</span>
+                    {% if hand.total %}
+                        <span class="score-badge {% if hand.total > 21 %}busted{% endif %}" style="margin-bottom:0; padding: 1px 10px;">
+                            {{ hand.total }}{% if hand.total > 21 %} BUST{% endif %}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Cards -->
+                <div class="hand">
+                    {% if hand.cards %}
+                        {% for code in hand.cards %}
+                            {% if code == "??" %}
+                                <div class="card hidden-card"></div>
+                            {% else %}
+                                {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
+                                    <div class="card">
+                                        <div class="card-corner {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                                            <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                            <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
+                                        </div>
+                                        <div class="card-suit-center {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                                            {% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}
+                                        </div>
+                                        <div class="card-corner bottom {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
+                                            <div class="card-rank">{% if rank == "A" %}A{% elif rank == "J" %}J{% elif rank == "Q" %}Q{% elif rank == "K" %}K{% else %}{{ rank }}{% endif %}</div>
+                                            <div class="card-suit-small">{% if suit == "H" %}♥{% elif suit == "D" %}♦{% elif suit == "S" %}♠{% else %}♣{% endif %}</div>
+                                        </div>
+                                    </div>
+                                {% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-hand">No cards</div>
+                    {% endif %}
+                </div>
+
+                <!-- Outcome -->
+                {% if hand.outcome %}
+                    {% with o=hand.outcome|upper %}
+                        {% if o == "WIN" or o == "BLACKJACK" %}
+                            <div class="outcome-banner outcome-win">🏆 {{ hand.outcome }}</div>
+                        {% elif o == "LOSE" or o == "BUST" %}
+                            <div class="outcome-banner outcome-lose">💔 {{ hand.outcome }}</div>
+                        {% elif o == "PUSH" %}
+                            <div class="outcome-banner outcome-push">🤝 {{ hand.outcome }}</div>
+                        {% elif o == "SURRENDER" %}
+                            <div class="outcome-banner outcome-push">🏳 {{ hand.outcome }}</div>
+                        {% else %}
+                            <div class="outcome-banner outcome-push">{{ hand.outcome }}</div>
+                        {% endif %}
+                    {% endwith %}
+                {% endif %}
+
+                <!-- Action buttons (only for active hand) -->
+                {% if hand.can_act %}
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="action-row">
+                        <button class="btn btn-hit" type="submit" name="action" value="HIT">Hit</button>
+                        <button class="btn btn-stand" type="submit" name="action" value="STAND">Stand</button>
+                        <button class="btn btn-double {% if not state.buttons.double %}btn-disabled{% endif %}"
+                            type="submit" name="action" value="DOUBLE"
+                            {% if not state.buttons.double %}disabled{% endif %}>Double</button>
+                        <button class="btn btn-split {% if not state.buttons.split %}btn-disabled{% endif %}"
+                            type="submit" name="action" value="SPLIT"
+                            {% if not state.buttons.split %}disabled{% endif %}>Split</button>
+                        <button class="btn btn-surrender {% if not state.buttons.surrender %}btn-disabled{% endif %}"
+                            type="submit" name="action" value="SURRENDER"
+                            {% if not state.buttons.surrender %}disabled{% endif %}>Surrender</button>
+                    </div>
+                </form>
+                {% endif %}
+
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Bottom controls -->
+    <hr class="divider">
     <form method="post">
         {% csrf_token %}
         <div class="btn-row">
-            <button class="btn {% if state.buttons.hit %}btn-hit{% else %}btn-disabled{% endif %}" 
-                type="submit" name="action" value="HIT" 
-                {% if not state.buttons.hit %}disabled{% endif %}>Hit
-            </button>
-
-            <button class="btn {% if state.buttons.stand %}btn-stand{% else %}btn-disabled{% endif %}" 
-                type="submit" name="action" value="STAND" 
-                {% if not state.buttons.stand %}disabled{% endif %}>Stand
-            </button>
-
-            <button class="btn {% if state.buttons.split %}btn-hit{% else %}btn-disabled{% endif %}" 
-                style="filter: hue-rotate(200deg);"
-                type="submit" name="action" value="SPLIT" 
-                {% if not state.buttons.split %}disabled{% endif %}>Split
-            </button>
-
-            <button class="btn" style="background: #e67e22;" 
-                    type="submit" name="action" value="SURRENDER"
-                    {% if state.player_cards|length != 2 or state.phase == "ROUND_OVER" %}disabled{% endif %}>
-                Surrender (50% Refund)
-            </button>
-
-            <button class="btn {% if state.buttons.new %}btn-new{% else %}btn-disabled{% endif %}" 
-                type="submit" name="action" value="NEW" 
-                {% if not state.buttons.new %}disabled{% endif %}>New Round
-            </button>
-        </div>
-
-        <div class="top-right-nav">
-            <button type="submit" name="action" value="START" class="btn-quit-fresh">
-                QUIT & FRESH START
-            </button>
+            <button class="btn {% if state.buttons.new_round %}btn-new{% else %}btn-disabled{% endif %}"
+                type="submit" name="action" value="NEW"
+                {% if not state.buttons.new_round %}disabled{% endif %}>New Round Setup</button>
+            <button type="submit" name="action" value="START" class="btn btn-stand">Quit & Fresh Start</button>
         </div>
     </form>
 
