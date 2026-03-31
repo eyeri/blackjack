@@ -1,176 +1,82 @@
-"""
-===============================================================================
-ENGINE.PY - MILESTONE 4 WORK GUIDE
-===============================================================================
-
-This file is being upgraded from a single-player engine to a multiplayer engine.
-
-Old structure:
-- one player
-- optional second hand
-- one global bet / balance flow
-
-New structure:
-- multiple players
-- each player can have multiple hands
-- each hand has its own bet and result
-- turn flow must track:
-    current_player_index
-    current_hand_index
-
-Main idea:
-Do not mix old single-player fields with new multiplayer fields.
-
-Wrong direction:
-- using self.player in one function
-- using self.players in another function
-
-Correct direction:
-- use the new multiplayer state model everywhere
-
-----------------------------------------------------------------------------
-What is already changed
-----------------------------------------------------------------------------
-These parts are already moved to the new structure:
-- __init__
-- start_betting_round()
-- complete_betting_and_deal()
-- _current_hand()
-- _current_bet()
-- _turn_message()
-- _set_current_outcome()
-- _all_hands_finished_or_blocked()
-- _advance_turn()
-- _evaluate_hand
-- state_snapshot()
-- _initial_deal_all()
-- resolve_round()
-- player_hit()
-- player_stand()
-- player_double_down()
-- player_surrender()
-- player_split()
-
-----------------------------------------------------------------------------
-What still must be rewritten
-----------------------------------------------------------------------------
-1. Action guards
-- can_hit()
-- can_stand()
-- can_double_down()
-- can_split()
-- can_surrender()
-
-----------------------------------------------------------------------------
-What should no longer be the main flow
-----------------------------------------------------------------------------
-These old single-player functions should not drive Milestone 4 anymore:
-- new_round()
-- initial_deal()
-
-New main flow:
-START/NEW
--> start_betting_round()
--> complete_betting_and_deal()
--> player turns
--> dealer turn
--> resolve_round()
-
-----------------------------------------------------------------------------
-Rule for anyone editing this file
-----------------------------------------------------------------------------
-Before writing or changing any function, check this first:
-
-1. Am I using current player / current hand?
-2. Am I reading from players / player_bets / player_balances?
-3. Am I avoiding old fields like self.player, self.current_bet, self.second_hand?
-
-If the answer is no, the function is still using the old engine model.
-
-===============================================================================
-"""
 from __future__ import annotations
-from cmath import phase
 from enum import Enum, auto
 from typing import List
-from typing import Dict, Any, Optional
 
 from .deck import Deck
 from .hand import Hand
-from .card import Card
 
 
 class Phase(Enum):
     INIT = auto()
-    BETTING = auto() # new for milestone 4
+    WAITING = auto()
+    BETTING = auto()
     PLAYER_TURN = auto()
     DEALER_TURN = auto()
     ROUND_OVER = auto()
 
 
 class GameEngine:
+    BLACKJACK_PAYOUT = 1.5
+    DEFAULT_BALANCE = 1000
+    DEFAULT_MIN_BET = 10
 
     """[Fixed]"""
-    def __init__(self, num_players: int = 1, is_tutorial: bool = False):
+    def __init__(self, num_players: int = 2, is_tutorial: bool = False):
         self.num_players = max(1, int(num_players))
         self.is_tutorial = bool(is_tutorial)
 
         self.deck: Deck = Deck(num_decks=6)
         self.dealer: Hand = Hand()
-        self.phase: Phase = Phase.INIT
-        self.message: str = ""
-
-        # Each player owns a list of hands.
-        # Normally 1 hand. After split -> 2 hands.
         self.players: List[List[Hand]] = [[Hand()] for _ in range(self.num_players)]
         self.player_bets: List[List[int]] = [[0] for _ in range(self.num_players)]
-        self.player_balances: List[int] = [1000 for _ in range(self.num_players)]
+        self.player_balances: List[int] = [self.DEFAULT_BALANCE for _ in range(self.num_players)]
         self.outcome_texts: List[List[str]] = [[""] for _ in range(self.num_players)]
+        self.player_names: List[str] = [f"Player {i + 1}" for i in range(self.num_players)]
+        self.player_ready: List[bool] = [False for _ in range(self.num_players)]
+        self.bet_confirmed: List[bool] = [False for _ in range(self.num_players)]
 
+        self.phase: Phase = Phase.WAITING
+        self.message: str = "Waiting for players to join."
+        self.tutorial_message: str = ""
         self.current_player_index: int = 0
         self.current_hand_index: int = 0
-
-        self.tutorial_message: str = (
-            "Welcome to Tutorial Mode. Place your bet to begin."
-            if self.is_tutorial else ""
-        )
     
     # ----------------------------
     # round setup (milestone 4)
     # ----------------------------
 
-    """[Changed to "start_betting_roung + complete_betting_and_deal"]       
-    def new_round(self, bet_amount: int = 100):
-        if self.player_balance < bet_amount:
-            self.message = "Insufficient balance for this bet!"
-            return
-        if bet_amount > self.player_balance:
-            self.message = "INVALID BET not enough dollars."
-            bet_amount = 10
-        
-        self.current_bet = bet_amount
-        self.player_balance -= self.current_bet
-        self.hand_bets = {"player": self.current_bet, "second_hand": 0}
-        
-        self.deck = Deck(num_decks=1)
-        self.player = Hand()
-        self.dealer = Hand()
-        self.second_hand = Hand()
-        
-        self.message = ""
-        self.outcome_texts = {}
-        self.phase = Phase.INIT
-        self.initial_deal()
-        
-        if self.player.is_blackjack() or self.dealer.is_blackjack():
-            self.resolve_round()
-        else:
-            self.phase = Phase.PLAYER_TURN
-            self.message = "Player turn: HIT or STAND."
-    """
+    """[Added]"""
+    def set_player_name(self, seat_index: int, name: str) -> None:
+        if 0 <= seat_index < self.num_players:
+            clean = (name or "").strip()
+            self.player_names[seat_index] = clean[:32] if clean else f"Player {seat_index + 1}"
+    
+    """[Added]"""
+    def set_player_ready(self, seat_index: int, ready: bool = True) -> None:
+        if 0 <= seat_index < self.num_players:
+            self.player_ready[seat_index] = bool(ready)
+            if self.phase == Phase.WAITING:
+                waiting_for = [
+                    self.player_names[i]
+                    for i, flag in enumerate(self.player_ready)
+                    if not flag
+                ]
+                if waiting_for:
+                    self.message = "Waiting for: " + ", ".join(waiting_for)
+                else:
+                    self.message = "All players joined. Host can start betting setup."
+
+    """[Added]"""
+    def all_players_ready(self) -> bool:
+        return all(self.player_ready)
+
 
     """[Added]"""
     def start_betting_round(self) -> None:
+        if not self.all_players_ready():
+            self.message = "All seats must be occupied before a round can start."
+            return
+
         self.deck = Deck(num_decks=6)
         self.dealer = Hand()
         self.players = [[Hand()] for _ in range(self.num_players)]
@@ -179,45 +85,74 @@ class GameEngine:
         self.current_player_index = 0
         self.current_hand_index = 0
         self.phase = Phase.BETTING
-        self.message = "Place bets for all players, then press DEAL."
+        self.bet_confirmed = [False for _ in range(self.num_players)]
+        self.message = "Place bets, then press DEAL."
 
-        if self.is_tutorial:
-            self.tutorial_message = (
-                "Tutorial mode: place your bet first. "
-                "After the deal, the system will recommend the strongest action."
-            )
+    """[Added]"""
+    def confirm_bet(self, seat_index: int) -> None:
+        if self.phase != Phase.BETTING:
+            self.message = "Betting is not open."
+            return
+
+        if not (0 <= seat_index < self.num_players):
+            return
+
+        current_bet = self.player_bets[seat_index][0]
+
+        if current_bet < self.DEFAULT_MIN_BET:
+            self.message = f"{self.player_names[seat_index]} must enter a valid bet first."
+            return
+
+        if current_bet > self.player_balances[seat_index]:
+            self.message = f"{self.player_names[seat_index]} does not have enough balance."
+            return
+
+        self.bet_confirmed[seat_index] = True
+
+        waiting = [
+            self.player_names[i]
+            for i, done in enumerate(self.bet_confirmed)
+            if not done
+        ]
+
+        if waiting:
+            self.message = "Waiting for bet confirmation from: " + ", ".join(waiting)
+        else:
+            self.message = "All bets confirmed. Host can deal cards now."
+
+    """[Added]"""
+    def all_bets_confirmed(self) -> bool:
+        return all(self.bet_confirmed)
 
     """[Added]"""
     def complete_betting_and_deal(self, bets: List[int]) -> None:
         if self.phase != Phase.BETTING:
+            self.message = "You can only deal from the betting phase."
             return
 
         if len(bets) != self.num_players:
             self.message = "Invalid betting data."
             return
 
-        normalized_bets: List[int] = []
+        normalized: List[int] = []
         for i, raw_bet in enumerate(bets):
             try:
                 bet = int(raw_bet)
             except Exception:
-                bet = 10
+                bet = self.DEFAULT_MIN_BET
 
-            if bet <= 0:
-                bet = 10
-
+            if bet < self.DEFAULT_MIN_BET:
+                bet = self.DEFAULT_MIN_BET
             if bet > self.player_balances[i]:
-                self.message = f"Player {i + 1} does not have enough balance."
+                self.message = f"{self.player_names[i]} does not have enough balance."
                 return
+            normalized.append(bet)
 
-            normalized_bets.append(bet)
-
-        for i, bet in enumerate(normalized_bets):
+        for i, bet in enumerate(normalized):
             self.player_balances[i] -= bet
             self.player_bets[i][0] = bet
 
         self._initial_deal_all()
-
         self.current_player_index = 0
         self.current_hand_index = 0
 
@@ -227,21 +162,14 @@ class GameEngine:
             self.resolve_round()
         else:
             self.phase = Phase.PLAYER_TURN
-            self.message = self._turn_message()
+            self._advance_turn(initial_pass=True)
         
-    """[Changed to _initial_deal_all]
-    def initial_deal(self) -> None:
-        Deal 2 cards to player and 2 cards to dealer.
-
-        self.player.add(self.deck.draw())
-        self.dealer.add(self.deck.draw())
-        self.player.add(self.deck.draw())
-        self.dealer.add(self.deck.draw())
-    """
 
     def _initial_deal_all(self) -> None:
-        # action guards (TODO - must be rewritten before player actions work correctly)
-        raise NotImplementedError
+        for _ in range(2):
+            for seat in self.players:
+                seat[0].add(self.deck.draw())
+            self.dealer.add(self.deck.draw())
     
     # ----------------------------
     # helpers
@@ -258,7 +186,7 @@ class GameEngine:
     """[Added]"""
     def _turn_message(self) -> str:
         return (
-            f"Player {self.current_player_index + 1} / "
+            f"{self.player_names[self.current_player_index]} / "
             f"Hand {self.current_hand_index + 1}: choose an action."
         )
 
@@ -268,15 +196,14 @@ class GameEngine:
 
     """[Added]"""
     def _all_hands_finished_or_blocked(self) -> bool:
-        for p in range(self.num_players):
-            for h in range(len(self.players[p])):
-                hand = self.players[p][h]
+        for seat in self.players:
+            for hand in seat:
                 if not hand.is_blackjack() and not hand.is_bust():
                     return False
         return True
     
     """[Added]"""
-    def _advance_turn(self) -> None:
+    def _advance_turn(self, initial_pass: bool = False) -> None:
         while True:
             if self.current_player_index >= self.num_players:
                 self.phase = Phase.DEALER_TURN
@@ -285,12 +212,11 @@ class GameEngine:
                 return
 
             hands = self.players[self.current_player_index]
-
             while self.current_hand_index < len(hands):
                 hand = hands[self.current_hand_index]
                 outcome = self.outcome_texts[self.current_player_index][self.current_hand_index]
 
-                if outcome:
+                if outcome in ("STAND", "LOSE", "SURRENDER", "BLACKJACK"):
                     self.current_hand_index += 1
                     continue
 
@@ -309,13 +235,11 @@ class GameEngine:
 
             self.current_player_index += 1
             self.current_hand_index = 0
+            if initial_pass:
+                initial_pass = False
     
     """[Fixed]"""    
     def _evaluate_hand(self, player_hand: Hand, dealer_hand: Hand) -> str:
-        """
-        Compare one player hand against the dealer hand.
-        This helper is reusable for split hands and multiplayer resolution.
-        """
         if player_hand.is_bust():
             return "LOSE"
         if dealer_hand.is_bust():
@@ -328,50 +252,51 @@ class GameEngine:
             return "BLACKJACK"
         if not player_hand.is_blackjack() and dealer_hand.is_blackjack():
             return "LOSE"
-
         if p_total > d_total:
             return "WIN"
-        elif d_total > p_total:
+        if d_total > p_total:
             return "LOSE"
-        else:
-            return "PUSH"
+        return "PUSH"
         
     # ----------------------------
     # action guards
-    # TODO (must rewrite):
-    # This function still uses the old single player model.
-    # Do not patch self.player / self.current_bet.
-    # Rewrite using _current_hand(), _current_bet(), player_bets, player_balances.
     # ----------------------------   
 
     def can_hit(self) -> bool:
         return self.phase == Phase.PLAYER_TURN and not self._current_hand().is_bust()
     
     def can_stand(self) -> bool:
-        """Return True if STAND is allowed now."""
         return self.phase == Phase.PLAYER_TURN and not self._current_hand().is_bust()
     
     def can_double_down(self) -> bool:
-        return (
-            self.phase == Phase.PLAYER_TURN 
-            and len(self._current_hand().cards) == 2
-            and not self._current_hand().is_bust()
-            and self.player_balances[self.current_player_index] >= self._current_bet()
-        )
-    
+        if self.phase != Phase.PLAYER_TURN:
+            return False
+        hand = self._current_hand()
+        balance = self.player_balances[self.current_player_index]
+        bet = self._current_bet()
+        return len(hand.cards) == 2 and not hand.is_bust() and balance >= bet
+
     def can_split(self) -> bool:
+        if self.phase != Phase.PLAYER_TURN:
+            return False
+        hands = self.players[self.current_player_index]
+        if len(hands) != 1:
+            return False
+        hand = hands[0]
+        balance = self.player_balances[self.current_player_index]
+        bet = self.player_bets[self.current_player_index][0]
         return (
-            self.phase == Phase.PLAYER_TURN
-            and len(self._current_hand().cards) == 2
-            and self._current_hand().cards[0].rank == self._current_hand().cards[1].rank
-            and self.player_balances[self.current_player_index] >= self._current_bet()
+            len(hand.cards) == 2
+            and hand.cards[0].rank == hand.cards[1].rank
+            and balance >= bet
         )
     
     def can_surrender(self) -> bool:
-        #TODO
+        if self.phase != Phase.PLAYER_TURN:
+            return False
         return (
-            self.phase == Phase.PLAYER_TURN
-            and len(self._current_hand().cards) == 2
+            len(self._current_hand().cards) == 2
+            and self.outcome_texts[self.current_player_index][self.current_hand_index] == ""
         )
 
     # ----------------------------
@@ -379,12 +304,9 @@ class GameEngine:
     # ----------------------------
 
     def player_hit(self) -> None:
-
-        """Player draws one card. If bust -> ROUND_OVER."""
-        if not self.can_hit(): 
-            self.message = "HIT is not allowed right now"
+        if not self.can_hit():
+            self.message = "HIT is not allowed right now."
             return
-
         hand = self._current_hand()
         hand.add(self.deck.draw())
         if hand.is_bust():
@@ -392,87 +314,66 @@ class GameEngine:
             self.current_hand_index += 1
             self._advance_turn()
         else:
-            self.message = f"Player {self.current_player_index + 1} hits ({hand.best_total()}). HIT or STAND?"
+            self.message = f"{self.player_names[self.current_player_index]} hits ({hand.best_total()})."
 
 
     def player_stand(self) -> None:
-        if not self.can_stand(): 
-            self.message = "STAND is not allowed right now"
+        if not self.can_stand():
+            self.message = "STAND is not allowed right now."
             return
-
         self._set_current_outcome("STAND")
         self.current_hand_index += 1
         self._advance_turn()
 
+
     def player_double_down(self) -> None:
-        if not self.can_double_down(): 
-            self.message = "Double down is not allowed."
+        if not self.can_double_down():
+            self.message = "DOUBLE is not allowed right now."
             return
-        
-        
         p = self.current_player_index
         h = self.current_hand_index
-        bet = self.player_bets[p][h]
-
-        self.player_balances[p] -= bet
-        self.player_bets[p][h] += bet
-
+        extra = self.player_bets[p][h]
+        self.player_balances[p] -= extra
+        self.player_bets[p][h] += extra
         hand = self.players[p][h]
         hand.add(self.deck.draw())
-
-        if hand.is_bust():
-            self.outcome_texts[p][h] = "LOSE"
-        else:
-            self.outcome_texts[p][h] = "STAND"
-        
+        self.outcome_texts[p][h] = "LOSE" if hand.is_bust() else "STAND"
         self.current_hand_index += 1
         self._advance_turn()
 
     def player_surrender(self) -> None:
-    # only able at first turn
         if not self.can_surrender():
-            self.message = "SURRENDER IS NOT ALLOWED"
+            self.message = "SURRENDER is not allowed right now."
             return
-        
         p = self.current_player_index
         h = self.current_hand_index
-
-        bet = self.player_bets[p][h]
-
-        refund = bet // 2
+        refund = self.player_bets[p][h] // 2
         self.player_balances[p] += refund
-
-        self._set_current_outcome("SURRENDER")
-
+        self.outcome_texts[p][h] = "SURRENDER"
         self.current_hand_index += 1
         self._advance_turn()
 
 
     def player_split(self) -> None:
         if not self.can_split():
-            self.message = "INVALID action: SPLIT not allowed"
+            self.message = "SPLIT is not allowed right now."
             return
-
         p = self.current_player_index
         h = self.current_hand_index
-
-        hand = self._current_hand()
-        bet = self.player_bets[p][h]
+        current_hand = self.players[p][h]
+        original_bet = self.player_bets[p][h]
 
         new_hand = Hand()
+        moved_card = current_hand.cards.pop()
+        new_hand.add(moved_card)
 
-        card = hand.cards.pop()
-        new_hand.add(card)
-
-        hand.add(self.deck.draw())
+        current_hand.add(self.deck.draw())
         new_hand.add(self.deck.draw())
 
         self.players[p].insert(h + 1, new_hand)
-        self.player_bets[p].insert(h + 1, bet)
+        self.player_bets[p].insert(h + 1, original_bet)
         self.outcome_texts[p].insert(h + 1, "")
-
-        self.player_balances[p] -= bet
-
+        self.player_balances[p] -= original_bet
         self.message = self._turn_message()
 
         
@@ -481,19 +382,16 @@ class GameEngine:
     # ----------------------------
 
     def run_dealer_turn(self) -> None:
-        """Dealer hits while dealer.base_total() < 17."""
         while self.dealer.best_total() < 17:
             self.dealer.add(self.deck.draw())
         
 
     def resolve_round(self) -> None:
-        summary_parts = [f"Dealer: {self.dealer.best_total()}"]
-
+        summary = [f"Dealer: {self.dealer.best_total()}"]
         for p in range(self.num_players):
             for h in range(len(self.players[p])):
                 hand = self.players[p][h]
                 existing = self.outcome_texts[p][h]
-
                 if existing in ("SURRENDER", "LOSE"):
                     result = existing
                 elif existing == "BLACKJACK":
@@ -503,18 +401,16 @@ class GameEngine:
 
                 self.outcome_texts[p][h] = result
                 bet = self.player_bets[p][h]
-
                 if result == "BLACKJACK":
-                    self.player_balances[p] += int(bet * 2.5)
+                    self.player_balances[p] += int(bet * (1 + self.BLACKJACK_PAYOUT))
                 elif result == "WIN":
-                    self.player_balances[p] += int(bet * 2.0)
+                    self.player_balances[p] += bet * 2
                 elif result == "PUSH":
                     self.player_balances[p] += bet
-
-                summary_parts.append(f"P{p + 1}-H{h + 1}:{result}")
+                summary.append(f"{self.player_names[p]}-H{h + 1}:{result}")
 
         self.phase = Phase.ROUND_OVER
-        self.message = " | ".join(summary_parts)
+        self.message = " | ".join(summary)
 
     # ----------------------------
     # tutorial helper
@@ -524,81 +420,19 @@ class GameEngine:
     def get_advice(self) -> str:
         if not self.is_tutorial or self.phase != Phase.PLAYER_TURN:
             return ""
-
         hand = self._current_hand()
-
         if len(self.dealer.cards) < 2:
             return ""
-
         p_total = hand.best_total()
         dealer_up = self.dealer.cards[1].base_value()
-
         if self.can_split() and hand.cards[0].rank in ("A", "8"):
             return "Recommended: SPLIT"
-
         if self.can_double_down() and p_total in (10, 11) and dealer_up <= 9:
             return "Recommended: DOUBLE"
-
         if p_total <= 11:
             return "Recommended: HIT"
         if p_total >= 17:
             return "Recommended: STAND"
         if 12 <= p_total <= 16:
             return "Recommended: STAND" if dealer_up <= 6 else "Recommended: HIT"
-
         return "Recommended: HIT"
-
-    """[Fixed]"""
-    def state_snapshot(self, hide_dealer_hole: bool = True) -> dict:
-        """
-        Debug / inspection snapshot for the current Milestone 4 engine state.
-        This is no longer a single-player UI snapshot.
-        """
-
-        dealer_codes = self.dealer.codes()
-        if (
-            hide_dealer_hole
-            and self.phase == Phase.PLAYER_TURN
-            and len(dealer_codes) >= 2
-        ):
-            dealer_display = ["??"] + dealer_codes[1:]
-            dealer_total = None
-        else:
-            dealer_display = dealer_codes
-            dealer_total = self.dealer.best_total() if self.dealer.cards else None
-
-        return {
-            "phase": self.phase.name,
-            "message": self.message,
-            "is_tutorial": self.is_tutorial,
-            "tutorial_message": self.tutorial_message,
-            "dealer_cards": dealer_display,
-            "dealer_total": dealer_total,
-            "current_player_index": self.current_player_index,
-            "current_hand_index": self.current_hand_index,
-            "players": [
-                {
-                    "player_index": p,
-                    "balance": self.player_balances[p],
-                    "hands": [
-                        {
-                            "hand_index": h,
-                            "cards": hand.codes(),
-                            "total": hand.best_total() if hand.cards else None,
-                            "bet": self.player_bets[p][h],
-                            "outcome": self.outcome_texts[p][h],
-                            "is_turn": (
-                                self.phase == Phase.PLAYER_TURN
-                                and p == self.current_player_index
-                                and h == self.current_hand_index
-                            ),
-                        }
-                        for h, hand in enumerate(self.players[p])
-                    ],
-                }
-                for p in range(self.num_players)
-            ],
-        }
-    
-
-    
