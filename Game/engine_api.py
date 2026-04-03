@@ -23,7 +23,12 @@ ACTION_DEAL = "DEAL"
 ACTION_JOIN = "JOIN"
 ACTION_READY = "READY"
 ACTION_CONFIRM_BET = "CONFIRM_BET"
-ACTION_TUTORIAL = "START_TUTORIAL" # milestone 4
+
+# milestone 5 [added]
+ACTION_TAKE_INSURANCE = "TAKE_INSURANCE"
+ACTION_SKIP_INSURANCE = "SKIP_INSURANCE"
+
+ACTION_TUTORIAL = "START_TUTORIAL" 
 
 SESSION_KEY_ENGINE_STATE = "engine_state"
 
@@ -53,7 +58,7 @@ def codes_to_deck(codes: List[str]) -> Deck:
 
 # Export / Import (Session State)
 
-"""[Fixed]"""
+
 def export_state(engine: GameEngine) -> Dict[str, Any]:
     return {
         "num_players": engine.num_players,
@@ -67,6 +72,11 @@ def export_state(engine: GameEngine) -> Dict[str, Any]:
         "player_names": engine.player_names,
         "player_ready": engine.player_ready,
         "bet_confirmed": engine.bet_confirmed,
+
+        # milestone 5 [added]
+        "insurance_bets": engine.insurance_bets,
+        "insurance_decided": engine.insurance_decided,
+
         "current_player_index": engine.current_player_index,
         "current_hand_index": engine.current_hand_index,
         "phase": engine.phase.name,
@@ -74,7 +84,7 @@ def export_state(engine: GameEngine) -> Dict[str, Any]:
         "tutorial_message": engine.tutorial_message,
     }
 
-"""[Fixed]"""
+
 def import_state(state_dict: Optional[Dict[str, Any]]) -> Optional[GameEngine]:
     if not state_dict:
         return None
@@ -95,16 +105,29 @@ def import_state(state_dict: Optional[Dict[str, Any]]) -> Optional[GameEngine]:
     engine.player_names = state_dict.get(
         "player_names", [f"Player {i + 1}" for i in range(engine.num_players)]
     )
-    engine.player_ready = state_dict.get("player_ready", [True for _ in range(engine.num_players)])
+    engine.player_ready = state_dict.get(
+        "player_ready", [True for _ in range(engine.num_players)]
+    )
     engine.current_player_index = state_dict.get("current_player_index", 0)
     engine.current_hand_index = state_dict.get("current_hand_index", 0)
-    engine.bet_confirmed = state_dict.get("bet_confirmed", [False for _ in range(engine.num_players)])
+    engine.bet_confirmed = state_dict.get(
+        "bet_confirmed", [False for _ in range(engine.num_players)]
+    )
+
+    # milestone 5 [fixed]
+    engine.insurance_bets = state_dict.get(
+        "insurance_bets", [0 for _ in range(engine.num_players)]
+    )
+    engine.insurance_decided = state_dict.get(
+        "insurance_decided", [False for _ in range(engine.num_players)]
+    )
+
     engine.phase = Phase[state_dict.get("phase", "WAITING")]
     engine.message = state_dict.get("message", "")
     engine.tutorial_message = state_dict.get("tutorial_message", "")
     return engine
 
-"""[Fixed]"""
+
 def apply_action(engine: GameEngine, action: str, bet: int = 100) -> None:
     if action == ACTION_NEW:
         engine.start_betting_round()
@@ -119,20 +142,20 @@ def apply_action(engine: GameEngine, action: str, bet: int = 100) -> None:
     elif action == ACTION_SURRENDER:
         engine.player_surrender()
 
-"""[Added]"""
 def _dealer_display(engine: GameEngine, viewer_is_player: bool = True) -> tuple[list[str], Optional[int]]:
     dealer_codes = engine.dealer.codes()
-    if viewer_is_player and engine.phase == Phase.PLAYER_TURN and len(dealer_codes) >= 2:
+
+    if viewer_is_player and engine.phase in (Phase.PLAYER_TURN, Phase.INSURANCE) and len(dealer_codes) >= 2:
         return ["??"] + dealer_codes[1:], None
+
     return dealer_codes, engine.dealer.best_total() if engine.dealer.cards else None
 
-"""[Added]"""
+
 def _mask_other_player_hand(hand: Hand, show_real_cards: bool) -> List[str]:
     if show_real_cards:
         return hand.codes()
     return ["??" for _ in hand.cards]
 
-"""[Fixed]"""
 def get_view_state_for_player(engine: GameEngine, viewer_index: int, table_code: str) -> Dict[str, Any]:
     dealer_cards, dealer_total = _dealer_display(engine, viewer_is_player=True)
     players_state = []
@@ -140,18 +163,27 @@ def get_view_state_for_player(engine: GameEngine, viewer_index: int, table_code:
     for i, seat in enumerate(engine.players):
         hand_states = []
         viewer_is_self = i == viewer_index
+
         for j, hand in enumerate(seat):
             is_turn = (
                 engine.phase == Phase.PLAYER_TURN
                 and i == engine.current_player_index
                 and j == engine.current_hand_index
             )
+
             hand_states.append(
                 {
-                    "cards": _mask_other_player_hand(hand, viewer_is_self or engine.phase == Phase.ROUND_OVER),
-                    "total": hand.best_total() if (viewer_is_self or engine.phase == Phase.ROUND_OVER) and hand.cards else None,
+                    "cards": _mask_other_player_hand(
+                        hand,
+                        viewer_is_self or engine.phase == Phase.ROUND_OVER
+                    ),
+                    "total": hand.best_total()
+                    if (viewer_is_self or engine.phase == Phase.ROUND_OVER) and hand.cards
+                    else None,
                     "bet": engine.player_bets[i][j],
-                    "outcome": engine.outcome_texts[i][j] if engine.phase == Phase.ROUND_OVER or viewer_is_self else "",
+                    "outcome": engine.outcome_texts[i][j]
+                    if engine.phase == Phase.ROUND_OVER or viewer_is_self
+                    else "",
                     "is_turn": is_turn,
                     "can_act": viewer_is_self and is_turn,
                     "is_owner": viewer_is_self,
@@ -168,6 +200,10 @@ def get_view_state_for_player(engine: GameEngine, viewer_index: int, table_code:
                 "is_active": engine.phase == Phase.PLAYER_TURN and i == engine.current_player_index,
                 "is_owner": viewer_is_self,
                 "ready": engine.player_ready[i],
+
+                # [M5] player insurance
+                "insurance_bet": engine.insurance_bets[i],
+                "insurance_decided": engine.insurance_decided[i],
             }
         )
 
@@ -177,12 +213,23 @@ def get_view_state_for_player(engine: GameEngine, viewer_index: int, table_code:
         "message": engine.message,
         "is_tutorial": engine.is_tutorial,
         "tutorial_message": engine.tutorial_message,
-        "advice": engine.get_advice() if engine.is_tutorial and viewer_index == engine.current_player_index else "",
+        "advice": engine.get_advice()
+        if engine.is_tutorial and viewer_index == engine.current_player_index
+        else "",
         "dealer_cards": dealer_cards,
         "dealer_total": dealer_total,
         "players": players_state,
         "viewer_index": viewer_index,
         "viewer_name": engine.player_names[viewer_index],
+
+        # [M5] viewer: insurance information
+        "insurance": {
+            "offered": engine.phase == Phase.INSURANCE,
+            "amount": engine.player_bets[viewer_index][0] // 2 if engine.phase == Phase.INSURANCE else 0,
+            "decided": engine.insurance_decided[viewer_index] if engine.phase == Phase.INSURANCE else False,
+            "taken": engine.insurance_bets[viewer_index] > 0 if engine.phase in (Phase.INSURANCE, Phase.ROUND_OVER) else False,
+        },
+
         "buttons": {
             "start_round": engine.phase in (Phase.WAITING, Phase.ROUND_OVER),
             "deal": engine.phase == Phase.BETTING and engine.all_bets_confirmed(),
@@ -192,5 +239,9 @@ def get_view_state_for_player(engine: GameEngine, viewer_index: int, table_code:
             "split": viewer_index == engine.current_player_index and engine.can_split(),
             "surrender": viewer_index == engine.current_player_index and engine.can_surrender(),
             "confirm_bet": engine.phase == Phase.BETTING and not engine.bet_confirmed[viewer_index],
+
+            # [M5] insurance
+            "take_insurance": engine.can_take_insurance(viewer_index),
+            "skip_insurance": engine.phase == Phase.INSURANCE and not engine.insurance_decided[viewer_index],
         },
     }

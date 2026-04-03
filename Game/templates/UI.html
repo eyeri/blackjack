@@ -121,7 +121,6 @@
             align-items: stretch;
         }
 
-
         .lobby-grid .panel form {
             display: flex;
             flex-direction: column;
@@ -207,7 +206,8 @@
         .player-section,
         .tutorial-panel,
         .betting-section,
-        .waiting-section {
+        .waiting-section,
+        .insurance-section {
             background: rgba(0,0,0,0.16);
             border: 1px solid rgba(160,192,128,0.15);
             border-radius: 16px;
@@ -432,9 +432,7 @@
             align-items: center;
         }
 
-        .btn:active {
-            transform: scale(0.96);
-        }
+        .btn:active { transform: scale(0.96); }
 
         .btn-gold {
             background: linear-gradient(135deg, #f0d060, #c8a020);
@@ -442,9 +440,7 @@
             box-shadow: 0 4px 16px rgba(240,208,96,0.35);
         }
 
-        .btn-gold:hover {
-            background: linear-gradient(135deg, #f8e070, #d8b030);
-        }
+        .btn-gold:hover { background: linear-gradient(135deg, #f8e070, #d8b030); }
 
         .btn-blue {
             background: linear-gradient(135deg, #2080c0, #104880);
@@ -452,9 +448,7 @@
             box-shadow: 0 4px 12px rgba(30,120,200,0.3);
         }
 
-        .btn-blue:hover {
-            background: linear-gradient(135deg, #3090d0, #205890);
-        }
+        .btn-blue:hover { background: linear-gradient(135deg, #3090d0, #205890); }
 
         .btn-green {
             background: linear-gradient(135deg, #3a9a50, #226632);
@@ -462,9 +456,7 @@
             box-shadow: 0 4px 12px rgba(50,160,80,0.3);
         }
 
-        .btn-green:hover {
-            background: linear-gradient(135deg, #4ab060, #2a7640);
-        }
+        .btn-green:hover { background: linear-gradient(135deg, #4ab060, #2a7640); }
 
         .btn-red {
             background: linear-gradient(135deg, #c03030, #8a1a1a);
@@ -472,9 +464,7 @@
             box-shadow: 0 4px 12px rgba(180,40,40,0.3);
         }
 
-        .btn-red:hover {
-            background: linear-gradient(135deg, #d04040, #9a2828);
-        }
+        .btn-red:hover { background: linear-gradient(135deg, #d04040, #9a2828); }
 
         .btn-orange {
             background: linear-gradient(135deg, #c07020, #804010);
@@ -482,9 +472,7 @@
             box-shadow: 0 4px 12px rgba(180,100,30,0.3);
         }
 
-        .btn-orange:hover {
-            background: linear-gradient(135deg, #d08030, #905020);
-        }
+        .btn-orange:hover { background: linear-gradient(135deg, #d08030, #905020); }
 
         .btn-purple {
             background: linear-gradient(135deg, #7040c0, #4a2080);
@@ -492,9 +480,7 @@
             box-shadow: 0 4px 16px rgba(120,60,200,0.3);
         }
 
-        .btn-purple:hover {
-            background: linear-gradient(135deg, #8050d0, #5a3090);
-        }
+        .btn-purple:hover { background: linear-gradient(135deg, #8050d0, #5a3090); }
 
         .btn-disabled {
             background: rgba(60,60,60,0.5) !important;
@@ -504,9 +490,7 @@
             border: 1px solid rgba(100,100,100,0.3);
         }
 
-        .btn-disabled:active {
-            transform: none !important;
-        }
+        .btn-disabled:active { transform: none !important; }
 
         .bet-grid {
             display: grid;
@@ -534,11 +518,7 @@
             margin-top: 8px;
         }
 
-        .divider {
-            border: none;
-            border-top: 1px solid rgba(160,192,128,0.2);
-            margin: 22px 0;
-        }
+        .hidden-ui { display: none; }
 
         @media (max-width: 700px) {
             .header h1 {
@@ -546,9 +526,7 @@
                 letter-spacing: 5px;
             }
 
-            .table-shell {
-                padding: 20px 16px;
-            }
+            .table-shell { padding: 20px 16px; }
 
             .btn {
                 min-width: 92px;
@@ -653,34 +631,25 @@
 
     <div class="top-meta">
         <div class="meta-left">
-            <span class="pill">Table {{ state.table_code }}</span>
-            <span class="pill">{{ state.phase|title }}</span>
-            <span class="pill">You: {{ state.viewer_name }}</span>
+            <span class="pill" id="pill-table">Table {{ state.table_code }}</span>
+            <span class="pill" id="pill-phase">{{ state.phase|title }}</span>
+            <span class="pill" id="pill-viewer">You: {{ state.viewer_name }}</span>
         </div>
         <div class="meta-right">
-            <span class="pill">Players {{ state.participant_count }}/{{ state.max_players }}</span>
-            {% if state.is_host %}
-                <span class="pill">Host</span>
-            {% endif %}
+            <span class="pill" id="pill-players">Players {{ state.participant_count }}/{{ state.max_players }}</span>
+            <span class="pill" id="pill-host" {% if not state.is_host %}style="display:none"{% endif %}>Host</span>
         </div>
     </div>
 
     <div class="message-box">
         <span class="msg-icon">💬</span>
-        {{ state.message }}
+        <span id="message-text">{{ state.message }}</span>
     </div>
 
-    {% if state.is_tutorial %}
-    <div class="tutorial-panel">
-        <h3>Tutorial Mode</h3>
-        {% if state.tutorial_message %}
-            <div class="small">{{ state.tutorial_message }}</div>
-        {% endif %}
-        {% if state.advice %}
-            <div class="tutorial-advice">{{ state.advice }}</div>
-        {% endif %}
-    </div>
-    {% endif %}
+    <div id="tutorial-box"></div>
+    <div id="insurance-box"></div>
+    <div id="waiting-box"></div>
+    <div id="betting-box"></div>
 
     <div class="btn-row" style="margin-bottom:18px;">
         {% if state.is_tutorial_room %}
@@ -694,292 +663,224 @@
             <button class="btn btn-red" type="submit" name="action" value="LEAVE">Leave Table</button>
         </form>
         {% endif %}
-
         <a class="btn btn-blue" href="{% url 'blackjack_lobby' %}">Lobby</a>
     </div>
 
-    {% if state.phase == "WAITING" %}
-    <div class="waiting-section">
-        <div class="zone-label">Waiting Room</div>
-        <p class="small" style="margin-bottom:12px;">
-            Share table code <strong>{{ state.table_code }}</strong> with the other players. Everyone must join before the round starts.
-        </p>
-
-        {% for player in state.players %}
-        <div class="player-header" style="padding:10px 0; border-bottom:1px solid rgba(240,208,96,0.10);">
-            <div class="player-name">{{ player.label }}</div>
-            <div class="player-flags">
-                {% if player.ready %}
-                    <span class="pill">Joined</span>
-                {% else %}
-                    <span class="pill">Waiting</span>
-                {% endif %}
-                {% if player.is_owner %}
-                    <span class="pill">You</span>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-
-        {% if state.is_host %}
-        <form method="post" style="margin-top:16px;">
-            {% csrf_token %}
-            <div class="btn-row">
-                <button class="btn {% if state.buttons.start_round %}btn-gold{% else %}btn-disabled{% endif %}"
-                        type="submit" name="action" value="NEW"
-                        {% if not state.buttons.start_round %}disabled{% endif %}>
-                    Open Betting Setup
-                </button>
-            </div>
-        </form>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    {% if state.phase == "BETTING" %}
-    <div class="betting-section">
-        <div class="zone-label">Betting Setup</div>
-
-        <div class="bet-grid">
-            {% for player in state.players %}
-            <div class="bet-row">
-                <div class="player-name" style="margin-bottom:8px;">
-                    {{ player.label }} {% if player.is_owner %}(You){% endif %}
-                </div>
-                <div class="small" style="margin-bottom:8px;">Balance: ${{ player.balance }}</div>
-
-                {% if player.is_owner %}
-                    {% if not player.bet_confirmed %}
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="number"
-                            name="bet_amount"
-                            value="{{ player.bet_value|default:100 }}"
-                            min="10"
-                            max="{{ player.balance }}">
-                        <div class="btn-row">
-                            <button class="btn btn-blue" type="submit" name="action" value="CONFIRM_BET">
-                                My Bet Ready
-                            </button>
-                        </div>
-                    </form>
-                    {% else %}
-                        <div class="pill">Bet Locked</div>
-                    {% endif %}
-                {% else %}
-                    {% if player.bet_confirmed %}
-                        <div class="pill">Bet Locked</div>
-                    {% else %}
-                        <div class="pill">Waiting</div>
-                    {% endif %}
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-
-        {% if state.is_host %}
-        <form method="post">
-            {% csrf_token %}
-            <div class="btn-row">
-                <button class="btn {% if state.buttons.deal %}btn-gold{% else %}btn-disabled{% endif %}"
-                        type="submit"
-                        name="action"
-                        value="DEAL"
-                        {% if not state.buttons.deal %}disabled{% endif %}>
-                    Deal Cards
-                </button>
-            </div>
-        </form>
-        {% endif %}
-    </div>
-    {% endif %}
-
     <div class="dealer-zone">
         <div class="zone-label">Dealer's Hand</div>
-
-        {% if state.dealer_total is not None %}
-            <div class="score-badge">Total: {{ state.dealer_total }}</div>
-        {% else %}
-            <div class="score-badge hidden">Total: ?</div>
-        {% endif %}
-
-        <div class="hand">
-            {% if state.dealer_cards %}
-                {% for code in state.dealer_cards %}
-                    {% if code == "??" %}
-                        <div class="card hidden-card"></div>
-                    {% else %}
-                        {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
-                            <div class="card">
-                                <div class="card-corner {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                                    <div class="card-rank">{{ rank }}</div>
-                                    <div class="card-suit-small">
-                                        {% if suit == 'H' %}♥{% elif suit == 'D' %}♦{% elif suit == 'S' %}♠{% else %}♣{% endif %}
-                                    </div>
-                                </div>
-                                <div class="card-suit-center {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                                    {% if suit == 'H' %}♥{% elif suit == 'D' %}♦{% elif suit == 'S' %}♠{% else %}♣{% endif %}
-                                </div>
-                                <div class="card-corner bottom {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                                    <div class="card-rank">{{ rank }}</div>
-                                    <div class="card-suit-small">
-                                        {% if suit == 'H' %}♥{% elif suit == 'D' %}♦{% elif suit == 'S' %}♠{% else %}♣{% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        {% endwith %}
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                <div class="empty-hand">Dealer has no cards yet.</div>
-            {% endif %}
-        </div>
+        <div id="dealer-total-box" class="score-badge hidden">Total: ?</div>
+        <div class="hand" id="dealer-cards-box"></div>
     </div>
 
-    {% for player in state.players %}
-    <div class="player-section {% if player.is_active %}active-player{% endif %} {% if player.is_owner %}me{% endif %}">
-        <div class="player-header">
-            <div class="player-name">{{ player.label }}</div>
-            <div class="player-flags">
-                <span class="pill">Balance ${{ player.balance }}</span>
-                {% if player.is_owner %}
-                    <span class="pill">Your Seat</span>
-                {% endif %}
-                {% if player.is_active %}
-                    <span class="pill">Turn</span>
-                {% endif %}
-                {% if player.ready %}
-                    <span class="pill">Ready</span>
-                {% endif %}
-            </div>
-        </div>
+    <div id="players-container"></div>
+    <div id="round-over-controls"></div>
 
-        <div class="hands-wrap">
-            {% for hand in player.hands %}
-            <div class="hand-block {% if hand.is_turn %}active-turn{% endif %}">
-                <div class="hand-meta">
-                    <span>Bet: ${{ hand.bet }}</span>
-                    {% if hand.total is not None %}
-                        <span class="score-badge {% if hand.total > 21 %}busted{% endif %}" style="margin-bottom:0; padding:1px 10px;">
-                            {{ hand.total }}{% if hand.total > 21 %} BUST{% endif %}
-                        </span>
-                    {% else %}
-                        <span>Total: hidden</span>
-                    {% endif %}
-                </div>
+    {{ state|json_script:"initial-room-state" }}
 
-                <div class="hand">
-                    {% if hand.cards %}
-                        {% for code in hand.cards %}
-                            {% if code == "??" %}
-                                <div class="card hidden-card"></div>
-                            {% else %}
-                                {% with rank=code|slice:":-1" suit=code|slice:"-1:"|upper %}
-                                    <div class="card">
-                                        <div class="card-corner {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                                            <div class="card-rank">{{ rank }}</div>
-                                            <div class="card-suit-small">
-                                                {% if suit == 'H' %}♥{% elif suit == 'D' %}♦{% elif suit == 'S' %}♠{% else %}♣{% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="card-suit-center {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                                            {% if suit == 'H' %}♥{% elif suit == 'D' %}♦{% elif suit == 'S' %}♠{% else %}♣{% endif %}
-                                        </div>
-                                        <div class="card-corner bottom {% if suit == 'H' or suit == 'D' %}red{% else %}black{% endif %}">
-                                            <div class="card-rank">{{ rank }}</div>
-                                            <div class="card-suit-small">
-                                                {% if suit == 'H' %}♥{% elif suit == 'D' %}♦{% elif suit == 'S' %}♠{% else %}♣{% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endwith %}
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <div class="empty-hand">No cards.</div>
-                    {% endif %}
-                </div>
+    <script>
+    /*
+    TODO [M5 AJAX skeleton]
 
-                {% if hand.outcome %}
-                    {% with o=hand.outcome|upper %}
-                        {% if o == "WIN" or o == "BLACKJACK" %}
-                            <div class="outcome-banner outcome-win">{{ hand.outcome }}</div>
-                        {% elif o == "LOSE" or o == "BUST" %}
-                            <div class="outcome-banner outcome-lose">{{ hand.outcome }}</div>
-                        {% else %}
-                            <div class="outcome-banner outcome-push">{{ hand.outcome }}</div>
-                        {% endif %}
-                    {% endwith %}
-                {% endif %}
+    This skeleton intentionally keeps the exact ids
 
-                {% if hand.can_act %}
-                <form method="post" style="margin-top:10px;">
-                    {% csrf_token %}
-                    <div class="action-row">
-                        <button class="btn {% if state.buttons.hit %}btn-green{% else %}btn-disabled{% endif %}"
-                                type="submit" name="action" value="HIT"
-                                {% if not state.buttons.hit %}disabled{% endif %}>
-                            Hit
-                        </button>
+    Important deletions from the old UI.html:
+    1) Remove the old full-page auto-refresh block:
+    setInterval(function() {
+        if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
+            location.reload();
+        }
+    }, 2000);
 
-                        <button class="btn {% if state.buttons.stand %}btn-red{% else %}btn-disabled{% endif %}"
-                                type="submit" name="action" value="STAND"
-                                {% if not state.buttons.stand %}disabled{% endif %}>
-                            Stand
-                        </button>
+    2) Remove server-rendered room-only sections AFTER you migrate them to these mounts:
+    - top-meta pills (once renderMeta controls them)
+    - tutorial panel
+    - waiting section
+    - betting section
+    - dealer cards/total content
+    - player sections
+    - round-over buttons
 
-                        <button class="btn {% if state.buttons.double %}btn-orange{% else %}btn-disabled{% endif %}"
-                                type="submit" name="action" value="DOUBLE"
-                                {% if not state.buttons.double %}disabled{% endif %}>
-                            Double
-                        </button>
+    3) Keep lobby server-rendered.
+    4) Tutorial may still use fallback POST submit if JSON endpoints are not fully ready.
+    */
 
-                        <button class="btn {% if state.buttons.split %}btn-blue{% else %}btn-disabled{% endif %}"
-                                type="submit" name="action" value="SPLIT"
-                                {% if not state.buttons.split %}disabled{% endif %}>
-                            Split
-                        </button>
+    function getCookie(name) {
+        // TODO [existing working helper]:
+        // return csrftoken value from document.cookie.
+    }
 
-                        <button class="btn {% if state.buttons.surrender %}btn-purple{% else %}btn-disabled{% endif %}"
-                                type="submit" name="action" value="SURRENDER"
-                                {% if not state.buttons.surrender %}disabled{% endif %}>
-                            Surrender
-                        </button>
-                    </div>
-                </form>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endfor %}
+    const initialState = JSON.parse(document.getElementById("initial-room-state").textContent);
+    const csrfToken = getCookie("csrftoken");
+    const ajaxEnabled = !initialState.is_tutorial_room;
+    const stateUrl = ajaxEnabled ? `/table/${encodeURIComponent(initialState.table_code)}/state/` : null;
+    const actionUrl = ajaxEnabled ? `/table/${encodeURIComponent(initialState.table_code)}/action/` : null;
 
-    {% if state.phase == "ROUND_OVER" and state.is_host and not state.is_tutorial_room %}
-    <div class="btn-row">
-        <form method="post">
-            {% csrf_token %}
-            <button class="btn btn-gold" type="submit" name="action" value="NEW">New Round Setup</button>
-        </form>
-    </div>
-    {% endif %}
+    function escapeHtml(value) {
+    // TODO: escape &, <, >, ", '
+    }
 
-    {% if state.phase == "ROUND_OVER" and state.is_tutorial_room %}
-    <div class="btn-row">
-        <form method="post">
-            {% csrf_token %}
-            <button class="btn btn-gold" type="submit" name="action" value="NEW">New Round Setup</button>
-        </form>
-    </div>
-    {% endif %}
+    function titleCase(text) {
+        // TODO: convert WAITING / ROUND_OVER -> Waiting / Round Over
+    }
 
-{% endif %}
-</div>
-<script>
-        setInterval(function() {
-            if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
-                location.reload();
+    function suitSymbol(suit) {
+        // TODO: H/D/S/C -> ♥/♦/♠/♣
+    }
+
+    function suitClass(suit) {
+        // TODO: hearts/diamonds => red, else black
+    }
+
+    function cardHtml(code) {
+        // TODO:
+        // - if code === "??" return hidden-card HTML
+        // - else return full card HTML using existing card classes
+    }
+
+    function renderDealer(cards, total) {
+        // TODO:
+        // update #dealer-total-box and #dealer-cards-box
+    }
+
+    function renderTutorialPanel(state) {
+        // TODO:
+        // mount tutorial message/advice into #tutorial-box
+    }
+
+    function renderInsurance(insurance) {
+        // TODO:
+        // mount insurance decision UI into #insurance-box
+        // expected behavior:
+        // - empty when insurance not offered
+        // - show amount
+        // - show TAKE / SKIP buttons before decision
+        // - show pill after decision
+    }
+
+    function renderWaitingSection(state) {
+        // TODO:
+        // mount WAITING phase UI into #waiting-box
+        // include joined/waiting player list and host NEW button
+    }
+
+    function handleConfirmBet(seatIndex) {
+        // TODO:
+        // read #bet-input-${seatIndex}
+        // call postAction("CONFIRM_BET", { bet_amount: value })
+    }
+
+    function renderBettingSection(state) {
+        // TODO:
+        // mount BETTING phase UI into #betting-box
+        // include per-player bet rows and host DEAL button
+    }
+
+    function actionButtonHtml(action, label, enabled, buttonClass) {
+        // TODO:
+        // return action button HTML calling postAction(action)
+    }
+
+    function outcomeBannerHtml(outcome) {
+        // TODO:
+        // WIN / BLACKJACK => outcome-win
+        // LOSE / BUST => outcome-lose
+        // else => outcome-push
+    }
+
+    function renderPlayers(players, buttons) {
+        // TODO:
+        // rebuild all player sections into #players-container
+        // each hand block should reuse:
+        // - cardHtml(code)
+        // - outcomeBannerHtml(outcome)
+        // - actionButtonHtml(...)
+    }
+
+    function renderRoundOverControls(state) {
+        // TODO:
+        // mount NEW round button into #round-over-controls
+        // show only when phase === "ROUND_OVER" and host/tutorial room rules allow it
+    }
+
+    function renderMeta(state) {
+        // TODO:
+        // update:
+        // - #pill-table
+        // - #pill-phase
+        // - #pill-viewer
+        // - #pill-players
+        // - #pill-host display state
+    }
+
+    function renderState(state) {
+        // TODO:
+        // renderMeta(state)
+        // update #message-text
+        // renderTutorialPanel(state)
+        // renderInsurance(state.insurance)
+        // renderWaitingSection(state)
+        // renderBettingSection(state)
+        // renderDealer(state.dealer_cards, state.dealer_total)
+        // renderPlayers(state.players, state.buttons)
+        // renderRoundOverControls(state)
+    }
+
+    async function refreshState() {
+        if (!ajaxEnabled) return;
+
+        const res = await fetch(stateUrl, {
+            headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        if (!res.ok) return;
+        const state = await res.json();
+        renderState(state);
+    }
+
+    function submitActionFallback(action, extra = {}) {
+        // TODO:
+        // build normal POST form dynamically for tutorial or AJAX failure fallback
+    }
+
+    async function postAction(action, extra = {}) {
+        if (!ajaxEnabled) {
+            submitActionFallback(action, extra);
+            return;
+        }
+
+        try {
+            const res = await fetch(actionUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify({ action, ...extra })
+            });
+
+            if (!res.ok) {
+                submitActionFallback(action, extra);
+                return;
+            }
+
+            const state = await res.json();
+            renderState(state);
+        } catch (err) {
+            submitActionFallback(action, extra);
+        }
+    }
+
+    renderState(initialState);
+
+    if (ajaxEnabled) {
+        setInterval(() => {
+            const active = document.activeElement;
+            const editingNumberInput = active && active.tagName === "INPUT" && active.type === "number";
+            if (!editingNumberInput) {
+                refreshState();
             }
         }, 2000);
+    }
     </script>
-</body>
-</html>
+    </body>
+    </html>
