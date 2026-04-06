@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import random
 import string
+import json
 from typing import List
-
+from django.http import JsonResponse
 from django.db import transaction
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -62,6 +63,13 @@ def tutorial(request: HttpRequest) -> HttpResponse:
         elif action == engine_api.ACTION_DEAL:
             bets = [seat_bets[0] for seat_bets in engine.player_bets]
             engine.complete_betting_and_deal(bets)
+
+        # [M5] tutorial insurance
+        elif action == engine_api.ACTION_TAKE_INSURANCE:
+            engine.decide_insurance(0, True)
+
+        elif action == engine_api.ACTION_SKIP_INSURANCE:
+            engine.decide_insurance(0, False)
 
         elif action in {
             engine_api.ACTION_HIT,
@@ -252,6 +260,12 @@ def room(request: HttpRequest, code: str) -> HttpResponse:
                 else:
                     engine.message = "Only the host can deal cards."
 
+            elif action == engine_api.ACTION_TAKE_INSURANCE:
+                engine.decide_insurance(participant.seat_index, True)
+
+            elif action == engine_api.ACTION_SKIP_INSURANCE:
+                engine.decide_insurance(participant.seat_index, False)
+
             elif action in {
                 engine_api.ACTION_HIT,
                 engine_api.ACTION_STAND,
@@ -272,3 +286,27 @@ def room(request: HttpRequest, code: str) -> HttpResponse:
     state["participant_count"] = table.participants.count()
     state["max_players"] = table.max_players
     return render(request, "UI.html", {"mode": "room", "state": state})
+
+# ----------------------------
+# AJAX endpoints for partial refresh
+# ----------------------------
+
+@require_http_methods(["GET"])
+def room_state(request: HttpRequest, code: str) -> JsonResponse:
+    # TODO [M5]:
+    # return engine_api.get_view_state_for_player(...) as JsonResponse,
+    # enriched with room metadata like is_host / participant_count / max_players.
+    pass
+
+
+@require_http_methods(["POST"])
+def room_action_json(request: HttpRequest, code: str) -> JsonResponse:
+    # TODO [M5]:
+    # parse JSON payload and apply AJAX room actions.
+    # Must support:
+    # - CONFIRM_BET
+    # - DEAL (host only)
+    # - TAKE_INSURANCE / SKIP_INSURANCE
+    # - HIT / STAND / DOUBLE / SPLIT / SURRENDER
+    # Save engine and return fresh viewer state as JSON.
+    pass

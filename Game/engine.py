@@ -10,6 +10,7 @@ class Phase(Enum):
     INIT = auto()
     WAITING = auto()
     BETTING = auto()
+    INSURANCE = auto()   # [M5] new pre-action phase when dealer upcard is Ace
     PLAYER_TURN = auto()
     DEALER_TURN = auto()
     ROUND_OVER = auto()
@@ -20,12 +21,16 @@ class GameEngine:
     DEFAULT_BALANCE = 1000
     DEFAULT_MIN_BET = 10
 
-    """[Fixed]"""
+    MAX_SPLIT_HANDS = 4
+    RESHUFFLE_CUTOFF = 52  # reshuffle before next round if remaining cards are low
+
     def __init__(self, num_players: int = 2, is_tutorial: bool = False):
         self.num_players = max(1, int(num_players))
         self.is_tutorial = bool(is_tutorial)
 
+        # [M4/M5] keep one shared shoe across rounds
         self.deck: Deck = Deck(num_decks=6)
+
         self.dealer: Hand = Hand()
         self.players: List[List[Hand]] = [[Hand()] for _ in range(self.num_players)]
         self.player_bets: List[List[int]] = [[0] for _ in range(self.num_players)]
@@ -34,6 +39,10 @@ class GameEngine:
         self.player_names: List[str] = [f"Player {i + 1}" for i in range(self.num_players)]
         self.player_ready: List[bool] = [False for _ in range(self.num_players)]
         self.bet_confirmed: List[bool] = [False for _ in range(self.num_players)]
+
+        # [M5] insurance side bet state (one choice per seat, not per hand)
+        self.insurance_bets: List[int] = [0 for _ in range(self.num_players)]
+        self.insurance_decided: List[bool] = [False for _ in range(self.num_players)]
 
         self.phase: Phase = Phase.WAITING
         self.message: str = "Waiting for players to join."
@@ -45,13 +54,11 @@ class GameEngine:
     # round setup (milestone 4)
     # ----------------------------
 
-    """[Added]"""
     def set_player_name(self, seat_index: int, name: str) -> None:
         if 0 <= seat_index < self.num_players:
             clean = (name or "").strip()
             self.player_names[seat_index] = clean[:32] if clean else f"Player {seat_index + 1}"
     
-    """[Added]"""
     def set_player_ready(self, seat_index: int, ready: bool = True) -> None:
         if 0 <= seat_index < self.num_players:
             self.player_ready[seat_index] = bool(ready)
@@ -66,29 +73,39 @@ class GameEngine:
                 else:
                     self.message = "All players joined. Host can start betting setup."
 
-    """[Added]"""
-    def all_players_ready(self) -> bool:
-        return all(self.player_ready)
+    def _need_reshuffle(self) -> bool:
+        """[M5] Decide whether to rebuild and shuffle the shoe before the next round."""
+        return self.deck.remaining() < self.RESHUFFLE_CUTOFF
 
-
-    """[Added]"""
     def start_betting_round(self) -> None:
+        """
+        [M5] Start a new round WITHOUT rebuilding the shoe every time.
+        Only reshuffle if the shoe is low.
+        """
         if not self.all_players_ready():
             self.message = "All seats must be occupied before a round can start."
             return
 
-        self.deck = Deck(num_decks=6)
+        shuffle_note = ""
+        if self._need_reshuffle():
+            self.deck = Deck(num_decks=6)
+            shuffle_note = " Shoe reshuffled."
+
         self.dealer = Hand()
         self.players = [[Hand()] for _ in range(self.num_players)]
         self.player_bets = [[0] for _ in range(self.num_players)]
         self.outcome_texts = [[""] for _ in range(self.num_players)]
+        self.bet_confirmed = [False for _ in range(self.num_players)]
+
+        # [M5] reset insurance state each round
+        self.insurance_bets = [0 for _ in range(self.num_players)]
+        self.insurance_decided = [False for _ in range(self.num_players)]
+
         self.current_player_index = 0
         self.current_hand_index = 0
         self.phase = Phase.BETTING
-        self.bet_confirmed = [False for _ in range(self.num_players)]
-        self.message = "Place bets, then press DEAL."
+        self.message = "Place bets, then press DEAL." + shuffle_note
 
-    """[Added]"""
     def confirm_bet(self, seat_index: int) -> None:
         if self.phase != Phase.BETTING:
             self.message = "Betting is not open."
@@ -120,12 +137,14 @@ class GameEngine:
         else:
             self.message = "All bets confirmed. Host can deal cards now."
 
-    """[Added]"""
     def all_bets_confirmed(self) -> bool:
         return all(self.bet_confirmed)
 
-    """[Added]"""
     def complete_betting_and_deal(self, bets: List[int]) -> None:
+        """
+        [M5] Old version jumped directly to PLAYER_TURN / DEALER_TURN.
+        New version delegates to _finish_opening_sequence() so INSURANCE can happen first.
+        """
         if self.phase != Phase.BETTING:
             self.message = "You can only deal from the betting phase."
             return
@@ -153,16 +172,7 @@ class GameEngine:
             self.player_bets[i][0] = bet
 
         self._initial_deal_all()
-        self.current_player_index = 0
-        self.current_hand_index = 0
-
-        if self._all_hands_finished_or_blocked():
-            self.phase = Phase.DEALER_TURN
-            self.run_dealer_turn()
-            self.resolve_round()
-        else:
-            self.phase = Phase.PLAYER_TURN
-            self._advance_turn(initial_pass=True)
+        self._finish_opening_sequence()
         
 
     def _initial_deal_all(self) -> None:
@@ -175,26 +185,26 @@ class GameEngine:
     # helpers
     # ----------------------------
 
-    """[Added]"""
+    
     def _current_hand(self) -> Hand:
         return self.players[self.current_player_index][self.current_hand_index]
 
-    """[Added]"""
+    
     def _current_bet(self) -> int:
         return self.player_bets[self.current_player_index][self.current_hand_index]
 
-    """[Added]"""
+    
     def _turn_message(self) -> str:
         return (
             f"{self.player_names[self.current_player_index]} / "
             f"Hand {self.current_hand_index + 1}: choose an action."
         )
 
-    """[Fixed]"""
+    
     def _set_current_outcome(self, text: str) -> None:
         self.outcome_texts[self.current_player_index][self.current_hand_index] = text
 
-    """[Added]"""
+    
     def _all_hands_finished_or_blocked(self) -> bool:
         for seat in self.players:
             for hand in seat:
@@ -202,7 +212,7 @@ class GameEngine:
                     return False
         return True
     
-    """[Added]"""
+    
     def _advance_turn(self, initial_pass: bool = False) -> None:
         while True:
             if self.current_player_index >= self.num_players:
@@ -238,7 +248,55 @@ class GameEngine:
             if initial_pass:
                 initial_pass = False
     
-    """[Fixed]"""    
+    # ----------------------------
+    # insurance helpers [M5]
+    # ----------------------------
+
+    def _dealer_upcard(self):
+        # TODO [M5]: return the dealer's visible upcard according to the current UI convention.
+        # Current project convention used in prior discussion:
+        # dealer.cards[1] is treated as the visible upcard while dealer.cards[0] is hidden.
+        pass
+
+    def _dealer_shows_ace(self) -> bool:
+        # TODO [M5]: True only when the visible dealer upcard is Ace.
+        pass
+
+    def can_take_insurance(self, seat_index: int) -> bool:
+        # TODO [M5]: validate insurance availability for a specific seat.
+        # Rules intended for final implementation:
+        # - phase must be INSURANCE
+        # - player has not decided yet
+        # - insurance amount is half of the main bet
+        # - player balance is enough for the side bet
+        pass
+
+    def decide_insurance(self, seat_index: int, take: bool) -> None:
+        # TODO [M5]: record a player's insurance decision.
+        # If take=True, deduct side bet.
+        # When all seats have decided, call _finish_insurance_phase().
+        pass
+
+    def _finish_opening_sequence(self) -> None:
+        # TODO [M5]:
+        # Called immediately after the initial deal.
+        # Branching intention:
+        # - if dealer shows Ace -> phase = INSURANCE
+        # - else if all hands are already blocked/finished -> dealer turn / resolve
+        # - else -> player turn
+        pass
+
+    def _finish_insurance_phase(self) -> None:
+        # TODO [M5]:
+        # After every seat decided insurance:
+        # - if dealer has blackjack -> resolve immediately
+        # - otherwise continue normal round flow
+        pass
+
+
+    # ----------------------------
+    # outcome logic
+    # ----------------------------
     def _evaluate_hand(self, player_hand: Hand, dealer_hand: Hand) -> str:
         if player_hand.is_bust():
             return "LOSE"
@@ -269,6 +327,9 @@ class GameEngine:
         return self.phase == Phase.PLAYER_TURN and not self._current_hand().is_bust()
     
     def can_double_down(self) -> bool:
+        """
+        [M5] This already works on split hands naturally because it checks the CURRENT hand.
+        """
         if self.phase != Phase.PLAYER_TURN:
             return False
         hand = self._current_hand()
@@ -277,14 +338,20 @@ class GameEngine:
         return len(hand.cards) == 2 and not hand.is_bust() and balance >= bet
 
     def can_split(self) -> bool:
+        """
+        [M5] Old code blocked split after the first split by requiring len(hands) == 1.
+        New logic checks the CURRENT hand and enforces only MAX_SPLIT_HANDS.
+        """
         if self.phase != Phase.PLAYER_TURN:
             return False
+
         hands = self.players[self.current_player_index]
-        if len(hands) != 1:
+        if len(hands) >= self.MAX_SPLIT_HANDS:
             return False
-        hand = hands[0]
+
+        hand = self._current_hand()
         balance = self.player_balances[self.current_player_index]
-        bet = self.player_bets[self.current_player_index][0]
+        bet = self._current_bet()
         return (
             len(hand.cards) == 2
             and hand.cards[0].rank == hand.cards[1].rank
@@ -387,11 +454,29 @@ class GameEngine:
         
 
     def resolve_round(self) -> None:
+        """
+        [M5] Insurance resolves as a side bet before/alongside main hand outcomes.
+        """
         summary = [f"Dealer: {self.dealer.best_total()}"]
+        dealer_blackjack = self.dealer.is_blackjack()
+
+        # resolve insurance side bet
+        for p in range(self.num_players):
+            insurance_bet = self.insurance_bets[p]
+            if insurance_bet > 0:
+                if dealer_blackjack:
+                    # stake already deducted when insurance was taken
+                    self.player_balances[p] += int(insurance_bet * (1 + self.INSURANCE_PAYOUT))
+                    summary.append(f"{self.player_names[p]}-INS:WIN")
+                else:
+                    summary.append(f"{self.player_names[p]}-INS:LOSE")
+
+        # resolve main hand outcomes
         for p in range(self.num_players):
             for h in range(len(self.players[p])):
                 hand = self.players[p][h]
                 existing = self.outcome_texts[p][h]
+
                 if existing in ("SURRENDER", "LOSE"):
                     result = existing
                 elif existing == "BLACKJACK":
@@ -401,12 +486,14 @@ class GameEngine:
 
                 self.outcome_texts[p][h] = result
                 bet = self.player_bets[p][h]
+
                 if result == "BLACKJACK":
                     self.player_balances[p] += int(bet * (1 + self.BLACKJACK_PAYOUT))
                 elif result == "WIN":
                     self.player_balances[p] += bet * 2
                 elif result == "PUSH":
                     self.player_balances[p] += bet
+
                 summary.append(f"{self.player_names[p]}-H{h + 1}:{result}")
 
         self.phase = Phase.ROUND_OVER
@@ -416,7 +503,6 @@ class GameEngine:
     # tutorial helper
     # ----------------------------
 
-    """[Added]"""
     def get_advice(self) -> str:
         if not self.is_tutorial or self.phase != Phase.PLAYER_TURN:
             return ""
