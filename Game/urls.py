@@ -1,18 +1,10 @@
-# urls.py
-"""
-URL routing placeholder.
-
-This file will define routes that connect
-UI requests to view functions.
-"""
-
 from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Placeholder route
-    # TODO (Milestone 3):
-    # - Add URL routes for advanced actions (DOUBLE, SPLIT)
-    # - Introduce route-level validation once full rule set is implemented
-    path('', views.blackjack_game, name='blackjack_home'),
+    path("", views.lobby, name="blackjack_lobby"),
+    path("table/<str:code>/", views.room, name="blackjack_room"),
+    path("table/<str:code>/state/", views.room_state, name="blackjack_room_state"),
+    path("table/<str:code>/action/", views.room_action_json, name="blackjack_room_action"),
+    path("tutorial/", views.tutorial, name="blackjack_tutorial"),
 ]
