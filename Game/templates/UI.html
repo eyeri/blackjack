@@ -705,8 +705,10 @@
     */
 
     function getCookie(name) {
-        // TODO [existing working helper]:
-        // return csrftoken value from document.cookie.
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return '';
     }
 
     const initialState = JSON.parse(document.getElementById("initial-room-state").textContent);
@@ -716,113 +718,303 @@
     const actionUrl = ajaxEnabled ? `/table/${encodeURIComponent(initialState.table_code)}/action/` : null;
 
     function escapeHtml(value) {
-    // TODO: escape &, <, >, ", '
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function titleCase(text) {
-        // TODO: convert WAITING / ROUND_OVER -> Waiting / Round Over
+        return String(text).replace(/_/g, ' ').toLowerCase()
+            .replace(/\b\w/g, c => c.toUpperCase());
     }
 
     function suitSymbol(suit) {
-        // TODO: H/D/S/C -> ♥/♦/♠/♣
+        return { H: '♥', D: '♦', S: '♠', C: '♣' }[suit] || suit;
     }
 
     function suitClass(suit) {
-        // TODO: hearts/diamonds => red, else black
+        return (suit === 'H' || suit === 'D') ? 'red' : 'black';
     }
 
     function cardHtml(code) {
-        // TODO:
-        // - if code === "??" return hidden-card HTML
-        // - else return full card HTML using existing card classes
+        if (code === '??') {
+            return '<div class="card hidden-card"></div>';
+        }
+        const suit = code.slice(-1).toUpperCase();
+        const rank = code.slice(0, -1);
+        const displayRank = { A: 'A', J: 'J', Q: 'Q', K: 'K' }[rank] || escapeHtml(rank);
+        const sc = suitClass(suit);
+        const ss = suitSymbol(suit);
+        return `<div class="card">
+            <div class="card-corner ${sc}">
+                <div class="card-rank">${displayRank}</div>
+                <div class="card-suit-small">${ss}</div>
+            </div>
+            <div class="card-suit-center ${sc}">${ss}</div>
+            <div class="card-corner bottom ${sc}">
+                <div class="card-rank">${displayRank}</div>
+                <div class="card-suit-small">${ss}</div>
+            </div>
+        </div>`;
     }
 
     function renderDealer(cards, total) {
-        // TODO:
-        // update #dealer-total-box and #dealer-cards-box
+        const totalBox = document.getElementById('dealer-total-box');
+        const cardsBox = document.getElementById('dealer-cards-box');
+        if (!totalBox || !cardsBox) return;
+
+        if (total !== null && total !== undefined) {
+            totalBox.textContent = `Total: ${total}`;
+            totalBox.className = 'score-badge';
+        } else {
+            totalBox.textContent = 'Total: ?';
+            totalBox.className = 'score-badge hidden';
+        }
+
+        cardsBox.innerHTML = (cards || []).map(cardHtml).join('');
     }
 
     function renderTutorialPanel(state) {
-        // TODO:
-        // mount tutorial message/advice into #tutorial-box
+        const box = document.getElementById('tutorial-box');
+        if (!box) return;
+
+        if (!state.is_tutorial) {
+            box.innerHTML = '';
+            return;
+        }
+
+        let html = '<div class="tutorial-panel"><h3>Tutorial Mode</h3>';
+        if (state.tutorial_message) {
+            html += `<p class="small" style="margin-bottom:8px;">${escapeHtml(state.tutorial_message)}</p>`;
+        }
+        if (state.advice) {
+            html += `<div class="tutorial-advice">Recommended: <strong>${escapeHtml(state.advice)}</strong></div>`;
+        }
+        html += '</div>';
+        box.innerHTML = html;
     }
 
-    function renderInsurance(insurance) {
-        // TODO:
-        // mount insurance decision UI into #insurance-box
-        // expected behavior:
-        // - empty when insurance not offered
-        // - show amount
-        // - show TAKE / SKIP buttons before decision
-        // - show pill after decision
+    function renderInsurance(state) {
+        const box = document.getElementById('insurance-box');
+        if (!box) return;
+
+        if (state.phase !== 'INSURANCE') {
+            box.innerHTML = '';
+            return;
+        }
+
+        const viewer = (state.players || []).find(p => p.is_owner);
+        if (!viewer) { box.innerHTML = ''; return; }
+
+        let html = '<div class="insurance-section"><div class="zone-label">Insurance Offered</div>';
+        html += '<p class="small" style="margin-bottom:12px;">Dealer may have Blackjack. Take insurance for up to half your bet?</p>';
+
+        if (viewer.insurance_decided) {
+            const txt = viewer.insurance_bet > 0 ? `Insurance taken: $${viewer.insurance_bet}` : 'Insurance declined';
+            html += `<span class="pill">${escapeHtml(txt)}</span>`;
+        } else {
+            html += `<div style="margin-bottom:12px;">
+                <input type="number" id="insurance-input" min="0" max="${viewer.balance}" value="0"
+                    style="background:rgba(0,0,0,0.35);border:1px solid rgba(240,208,96,0.35);color:#f0e6c8;padding:8px 12px;border-radius:8px;font-family:Georgia,serif;font-size:0.95rem;width:120px;">
+            </div>
+            <div class="action-row" style="justify-content:flex-start;">
+                <button class="btn btn-green" onclick="postAction('TAKE_INSURANCE',{bet_amount:parseInt(document.getElementById('insurance-input').value)||0})">Take Insurance</button>
+                <button class="btn btn-red" onclick="postAction('SKIP_INSURANCE')">Skip</button>
+            </div>`;
+        }
+        html += '</div>';
+        box.innerHTML = html;
     }
 
     function renderWaitingSection(state) {
-        // TODO:
-        // mount WAITING phase UI into #waiting-box
-        // include joined/waiting player list and host NEW button
+        const box = document.getElementById('waiting-box');
+        if (!box) return;
+
+        if (state.phase !== 'WAITING') {
+            box.innerHTML = '';
+            return;
+        }
+
+        let html = '<div class="waiting-section"><div class="zone-label">Waiting for Players</div>';
+        html += '<ul class="link-list" style="margin-bottom:14px;">';
+        (state.players || []).forEach(p => {
+            html += `<li>${escapeHtml(p.label)} — ${p.ready ? '✅ Joined' : '⏳ Waiting'}</li>`;
+        });
+        html += '</ul>';
+
+        if (state.is_host) {
+            const allReady = (state.players || []).every(p => p.ready);
+            html += `<div class="btn-row" style="justify-content:flex-start;">
+                <button class="btn ${allReady ? 'btn-gold' : 'btn-disabled'}" ${allReady ? '' : 'disabled'}
+                    onclick="postAction('NEW')">Start Betting Round</button>
+            </div>`;
+        }
+        html += '</div>';
+        box.innerHTML = html;
     }
 
     function handleConfirmBet(seatIndex) {
-        // TODO:
-        // read #bet-input-${seatIndex}
-        // call postAction("CONFIRM_BET", { bet_amount: value })
+        const input = document.getElementById(`bet-input-${seatIndex}`);
+        const value = input ? parseInt(input.value) || 100 : 100;
+        postAction('CONFIRM_BET', { bet_amount: value, seat_index: seatIndex });
     }
 
     function renderBettingSection(state) {
-        // TODO:
-        // mount BETTING phase UI into #betting-box
-        // include per-player bet rows and host DEAL button
+        const box = document.getElementById('betting-box');
+        if (!box) return;
+
+        if (state.phase !== 'BETTING') {
+            box.innerHTML = '';
+            return;
+        }
+
+        let html = '<div class="betting-section"><div class="zone-label">Place Bets</div><div class="bet-grid">';
+
+        (state.players || []).forEach((player, i) => {
+            html += `<div class="bet-row">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span class="player-name" style="font-size:0.85rem;">${escapeHtml(player.label)}</span>
+                    <span class="small">Balance: $${player.balance}</span>
+                </div>`;
+
+            if (player.bet_confirmed) {
+                html += `<span class="pill" style="color:#60e880;border-color:#32b450;">✓ Confirmed: $${player.bet_value}</span>`;
+            } else if (player.is_owner) {
+                html += `<input type="number" id="bet-input-${i}" min="10" max="${player.balance}" value="${player.bet_value || 100}">
+                    <div class="action-row" style="justify-content:flex-end;margin-top:8px;">
+                        <button class="btn btn-gold" style="min-width:80px;padding:8px 16px;" onclick="handleConfirmBet(${i})">Confirm Bet</button>
+                    </div>`;
+            } else {
+                html += `<span class="pill">Waiting for bet...</span>`;
+            }
+            html += '</div>';
+        });
+
+        html += '</div>';
+
+        if (state.is_host) {
+            const allConfirmed = (state.players || []).every(p => p.bet_confirmed);
+            html += `<div class="btn-row">
+                <button class="btn ${allConfirmed ? 'btn-gold' : 'btn-disabled'}" ${allConfirmed ? '' : 'disabled'}
+                    onclick="postAction('DEAL')">Deal Cards</button>
+            </div>`;
+        }
+        html += '</div>';
+        box.innerHTML = html;
     }
 
     function actionButtonHtml(action, label, enabled, buttonClass) {
-        // TODO:
-        // return action button HTML calling postAction(action)
+        const cls = enabled ? `btn ${buttonClass}` : 'btn btn-disabled';
+        return `<button class="${cls}" ${enabled ? '' : 'disabled'} onclick="postAction('${action}')">${escapeHtml(label)}</button>`;
     }
 
     function outcomeBannerHtml(outcome) {
-        // TODO:
-        // WIN / BLACKJACK => outcome-win
-        // LOSE / BUST => outcome-lose
-        // else => outcome-push
+        if (!outcome) return '';
+        const o = outcome.toUpperCase();
+        let cls = 'outcome-push', icon = '🤝';
+        if (o === 'WIN' || o === 'BLACKJACK') { cls = 'outcome-win'; icon = '🏆'; }
+        else if (o === 'LOSE' || o === 'BUST') { cls = 'outcome-lose'; icon = '💔'; }
+        else if (o === 'SURRENDER') { icon = '🏳'; }
+        return `<div class="outcome-banner ${cls}">${icon} ${escapeHtml(outcome)}</div>`;
     }
 
     function renderPlayers(players, buttons) {
-        // TODO:
-        // rebuild all player sections into #players-container
-        // each hand block should reuse:
-        // - cardHtml(code)
-        // - outcomeBannerHtml(outcome)
-        // - actionButtonHtml(...)
+        const container = document.getElementById('players-container');
+        if (!container) return;
+
+        const btns = buttons || {};
+        let html = '';
+
+        (players || []).forEach(player => {
+            const activeClass = player.is_active ? 'active-player' : '';
+            const meClass = player.is_owner ? 'me' : '';
+
+            html += `<div class="player-section ${activeClass} ${meClass}">
+                <div class="player-header">
+                    <div class="player-flags">
+                        <span class="player-name">${escapeHtml(player.label)}</span>
+                        ${player.is_owner ? '<span class="pill">You</span>' : ''}
+                        ${player.is_active ? '<span class="pill" style="border-color:gold;color:#f0d060;">Active Turn</span>' : ''}
+                    </div>
+                    <span class="small">Balance: $${player.balance}</span>
+                </div>
+                <div class="hands-wrap">`;
+
+            (player.hands || []).forEach(hand => {
+                const turnClass = hand.is_turn ? 'active-turn' : '';
+                const totalClass = hand.total > 21 ? 'busted' : '';
+
+                html += `<div class="hand-block ${turnClass}">
+                    <div class="hand-meta">
+                        <span>Bet: $${hand.bet}</span>
+                        ${hand.total ? `<span class="score-badge ${totalClass}" style="margin-bottom:0;padding:1px 10px;">${hand.total}${hand.total > 21 ? ' BUST' : ''}</span>` : ''}
+                    </div>
+                    <div class="hand">
+                        ${hand.cards && hand.cards.length ? hand.cards.map(cardHtml).join('') : '<div class="empty-hand">No cards</div>'}
+                    </div>
+                    ${outcomeBannerHtml(hand.outcome)}`;
+
+                if (hand.can_act) {
+                    html += `<div class="action-row">
+                        ${actionButtonHtml('HIT',       'Hit',       btns.hit,       'btn-green')}
+                        ${actionButtonHtml('STAND',     'Stand',     btns.stand,     'btn-red')}
+                        ${actionButtonHtml('DOUBLE',    'Double',    btns.double,    'btn-orange')}
+                        ${actionButtonHtml('SPLIT',     'Split',     btns.split,     'btn-blue')}
+                        ${actionButtonHtml('SURRENDER', 'Surrender', btns.surrender, 'btn-orange')}
+                    </div>`;
+                }
+
+                html += '</div>';
+            });
+
+            html += '</div></div>';
+        });
+
+        container.innerHTML = html;
     }
 
     function renderRoundOverControls(state) {
-        // TODO:
-        // mount NEW round button into #round-over-controls
-        // show only when phase === "ROUND_OVER" and host/tutorial room rules allow it
+        const box = document.getElementById('round-over-controls');
+        if (!box) return;
+
+        if (state.phase !== 'ROUND_OVER') {
+            box.innerHTML = '';
+            return;
+        }
+
+        let html = '<div class="btn-row" style="margin-top:10px;">';
+        if (state.is_host || state.is_tutorial_room) {
+            html += `<button class="btn btn-gold" onclick="postAction('NEW')">New Round Setup</button>`;
+        }
+        html += `<button class="btn btn-red" onclick="postAction('LEAVE')">Leave Table</button>`;
+        html += '</div>';
+        box.innerHTML = html;
     }
 
     function renderMeta(state) {
-        // TODO:
-        // update:
-        // - #pill-table
-        // - #pill-phase
-        // - #pill-viewer
-        // - #pill-players
-        // - #pill-host display state
+        const setEl = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        setEl('pill-table',   `Table ${state.table_code || ''}`);
+        setEl('pill-phase',   titleCase(state.phase || ''));
+        setEl('pill-viewer',  `You: ${state.viewer_name || ''}`);
+        setEl('pill-players', `Players ${state.participant_count || 0}/${state.max_players || 0}`);
+        const hostPill = document.getElementById('pill-host');
+        if (hostPill) hostPill.style.display = state.is_host ? '' : 'none';
     }
 
     function renderState(state) {
-        // TODO:
-        // renderMeta(state)
-        // update #message-text
-        // renderTutorialPanel(state)
-        // renderInsurance(state.insurance)
-        // renderWaitingSection(state)
-        // renderBettingSection(state)
-        // renderDealer(state.dealer_cards, state.dealer_total)
-        // renderPlayers(state.players, state.buttons)
-        // renderRoundOverControls(state)
+        renderMeta(state);
+        const msgEl = document.getElementById('message-text');
+        if (msgEl) msgEl.textContent = state.message || '';
+        renderTutorialPanel(state);
+        renderInsurance(state);
+        renderWaitingSection(state);
+        renderBettingSection(state);
+        renderDealer(state.dealer_cards, state.dealer_total);
+        renderPlayers(state.players, state.buttons);
+        renderRoundOverControls(state);
     }
 
     async function refreshState() {
@@ -837,8 +1029,32 @@
     }
 
     function submitActionFallback(action, extra = {}) {
-        // TODO:
-        // build normal POST form dynamically for tutorial or AJAX failure fallback
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = window.location.pathname;
+
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrfmiddlewaretoken';
+        csrf.value = csrfToken;
+        form.appendChild(csrf);
+
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = action;
+        form.appendChild(actionInput);
+
+        Object.entries(extra).forEach(([key, val]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = val;
+            form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
     }
 
     async function postAction(action, extra = {}) {
