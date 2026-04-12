@@ -293,20 +293,87 @@ def room(request: HttpRequest, code: str) -> HttpResponse:
 
 @require_http_methods(["GET"])
 def room_state(request: HttpRequest, code: str) -> JsonResponse:
-    # TODO [M5]:
-    # return engine_api.get_view_state_for_player(...) as JsonResponse,
-    # enriched with room metadata like is_host / participant_count / max_players.
-    pass
+    table = get_object_or_404(GameTable, code=code.upper())
+    participant = _viewer_participant(request, table)
+    engine = _load_engine(table)
+
+    state = engine_api.get_view_state_for_player(
+        engine,
+        participant.seat_index,
+        table.code,
+    )
+    state["is_host"] = participant.is_host
+    state["participant_count"] = table.participants.count()
+    state["max_players"] = table.max_players
+
+    return JsonResponse(state)
 
 
 @require_http_methods(["POST"])
 def room_action_json(request: HttpRequest, code: str) -> JsonResponse:
-    # TODO [M5]:
-    # parse JSON payload and apply AJAX room actions.
-    # Must support:
-    # - CONFIRM_BET
-    # - DEAL (host only)
-    # - TAKE_INSURANCE / SKIP_INSURANCE
-    # - HIT / STAND / DOUBLE / SPLIT / SURRENDER
-    # Save engine and return fresh viewer state as JSON.
-    pass
+    table = get_object_or_404(GameTable, code=code.upper())
+    participant = _viewer_participant(request, table)
+
+    try:
+        payload = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    action = (payload.get("action") or "").upper().strip()
+
+    with transaction.atomic():
+        engine = _load_engine(table)
+
+        if action == engine_api.ACTION_CONFIRM_BET:
+            if engine.phase == Phase.BETTING:
+                raw_bet = payload.get("bet_amount", GameEngine.DEFAULT_MIN_BET)
+                try:
+                    bet = int(raw_bet)
+                except (TypeError, ValueError):
+                    bet = GameEngine.DEFAULT_MIN_BET
+
+                engine.player_bets[participant.seat_index][0] = bet
+                engine.confirm_bet(participant.seat_index)
+            else:
+                engine.message = "Bet confirmation is only allowed during betting"
+
+        elif action == engine_api.ACTION_DEAL:
+            if participant.is_host:
+                bets = [seat_bets[0] for seat_bets in engine.player_bets]
+                engine.complete_betting_and_deal(bets)
+            else:
+                engine.message = "Only the host can deal cards"
+
+        elif action == engine_api.ACTION_TAKE_INSURANCE:
+            engine.decide_insurance(participant.seat_index, True)
+
+        elif action == engine_api.ACTION_SKIP_INSURANCE:
+            engine.decide_insurance(participant.seat_index, False)
+
+        elif action in {
+            engine_api.ACTION_HIT,
+            engine_api.ACTION_STAND,
+            engine_api.ACTION_DOUBLE,
+            engine_api.ACTION_SPLIT,
+            engine_api.ACTION_SURRENDER,
+        }:
+            if participant.seat_index != engine.current_player_index:
+                engine.message = "it is not your turn."
+            else:
+                engine_api.apply_action(engine, action)
+
+        else:
+            return JsonResponse({"error": "Unsupported action"}, status=400)
+
+        _save_engine(table, engine)
+
+    state = engine_api.get_view_state_for_player(
+        engine,
+        participant.seat_index,
+        table.code,
+    )
+    state["is_host"] = participant.is_host
+    state["participant_count"] = table.participants.count()
+    state["max_players"] = table.max_players
+
+    return JsonResponse(state)
