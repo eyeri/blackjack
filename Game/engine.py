@@ -18,6 +18,7 @@ class Phase(Enum):
 
 class GameEngine:
     BLACKJACK_PAYOUT = 1.5
+    INSURANCE_PAYOUT = 2
     DEFAULT_BALANCE = 1000
     DEFAULT_MIN_BET = 10
 
@@ -256,11 +257,12 @@ class GameEngine:
         # TODO [M5]: return the dealer's visible upcard according to the current UI convention.
         # Current project convention used in prior discussion:
         # dealer.cards[1] is treated as the visible upcard while dealer.cards[0] is hidden.
-        pass
+        return self.dealer.cards[1]
 
     def _dealer_shows_ace(self) -> bool:
         # TODO [M5]: True only when the visible dealer upcard is Ace.
-        pass
+        upcard = self._dealer_upcard()
+        return upcard.rank == "A"
 
     def can_take_insurance(self, seat_index: int) -> bool:
         # TODO [M5]: validate insurance availability for a specific seat.
@@ -269,13 +271,40 @@ class GameEngine:
         # - player has not decided yet
         # - insurance amount is half of the main bet
         # - player balance is enough for the side bet
-        pass
+        if self.phase != Phase.INSURANCE:
+            return False
+
+        if not (0 <= seat_index < self.num_players):
+            return False
+
+        if self.insurance_decided[seat_index]:
+            return False
+        
+        main_bet = self.player_bets[seat_index][0]
+        insurance_cost = main_bet //2
+
+        return self.player_balances[seat_index] >= insurance_cost
 
     def decide_insurance(self, seat_index: int, take: bool) -> None:
         # TODO [M5]: record a player's insurance decision.
         # If take=True, deduct side bet.
         # When all seats have decided, call _finish_insurance_phase().
-        pass
+        if not self.can_take_insurance(seat_index):
+            return
+        
+        main_bet = self.player_bets[seat_index][0]
+        insurance_cost = main_bet //2
+
+        if take:
+            self.player_balances[seat_index] -= insurance_cost
+            self.insurance_bets[seat_index] = insurance_cost
+        
+        self.insurance_decided[seat_index] = True
+
+        if all(self.insurance_decided):
+            self._finish_insurance_phase()
+
+
 
     def _finish_opening_sequence(self) -> None:
         # TODO [M5]:
@@ -284,14 +313,36 @@ class GameEngine:
         # - if dealer shows Ace -> phase = INSURANCE
         # - else if all hands are already blocked/finished -> dealer turn / resolve
         # - else -> player turn
-        pass
+        if self._dealer_shows_ace():
+            self.phase = Phase.INSURANCE
+            self.message = "Dealer Shows Ace. Take Insurance?"
+        elif self._all_hands_finished_or_blocked():
+            self.phase = Phase.DEALER_TURN
+            self.run_dealer_turn()
+            self.resolve_round()
+        else:
+            self.phase = Phase.PLAYER_TURN
+            self._advance_turn(initial_pass=True)
+            
 
     def _finish_insurance_phase(self) -> None:
         # TODO [M5]:
         # After every seat decided insurance:
         # - if dealer has blackjack -> resolve immediately
         # - otherwise continue normal round flow
-        pass
+        dealer_blackjack = self.dealer.is_blackjack()
+
+        if dealer_blackjack:
+            self.resolve_round()
+            return
+        
+        if self._all_hands_finished_or_blocked():
+            self.phase = Phase.DEALER_TURN
+            self.run_dealer_turn()
+            self.resolve_round()
+        else:
+            self.phase = Phase.PLAYER_TURN
+            self._advance_turn(initial_pass=True)
 
 
     # ----------------------------
