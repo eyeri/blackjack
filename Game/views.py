@@ -324,7 +324,21 @@ def room_action_json(request: HttpRequest, code: str) -> JsonResponse:
     with transaction.atomic():
         engine = _load_engine(table)
 
-        if action == engine_api.ACTION_CONFIRM_BET:
+        # M5: NEW round setup must also work through AJAX
+        if action == engine_api.ACTION_NEW:
+            if participant.is_host:
+                engine.start_betting_round()
+            else:
+                engine.message = "Only the host can open the next round setup."
+
+        # M5: insurance is seat-based, not current-turn based
+        elif action == engine_api.ACTION_TAKE_INSURANCE:
+            engine.decide_insurance(participant.seat_index, True)
+
+        elif action == engine_api.ACTION_SKIP_INSURANCE:
+            engine.decide_insurance(participant.seat_index, False)
+
+        elif action == engine_api.ACTION_CONFIRM_BET:
             if engine.phase == Phase.BETTING:
                 raw_bet = payload.get("bet_amount", GameEngine.DEFAULT_MIN_BET)
                 try:
@@ -335,20 +349,14 @@ def room_action_json(request: HttpRequest, code: str) -> JsonResponse:
                 engine.player_bets[participant.seat_index][0] = bet
                 engine.confirm_bet(participant.seat_index)
             else:
-                engine.message = "Bet confirmation is only allowed during betting"
+                engine.message = "Bet confirmation is only allowed during betting."
 
         elif action == engine_api.ACTION_DEAL:
             if participant.is_host:
                 bets = [seat_bets[0] for seat_bets in engine.player_bets]
                 engine.complete_betting_and_deal(bets)
             else:
-                engine.message = "Only the host can deal cards"
-
-        elif action == engine_api.ACTION_TAKE_INSURANCE:
-            engine.decide_insurance(participant.seat_index, True)
-
-        elif action == engine_api.ACTION_SKIP_INSURANCE:
-            engine.decide_insurance(participant.seat_index, False)
+                engine.message = "Only the host can deal cards."
 
         elif action in {
             engine_api.ACTION_HIT,
@@ -358,12 +366,12 @@ def room_action_json(request: HttpRequest, code: str) -> JsonResponse:
             engine_api.ACTION_SURRENDER,
         }:
             if participant.seat_index != engine.current_player_index:
-                engine.message = "it is not your turn."
+                engine.message = "It is not your turn."
             else:
                 engine_api.apply_action(engine, action)
 
         else:
-            return JsonResponse({"error": "Unsupported action"}, status=400)
+            engine.message = f"Unknown action: {action}"
 
         _save_engine(table, engine)
 

@@ -200,10 +200,8 @@ def get_view_state_for_player(engine: GameEngine, viewer_index: int, table_code:
                 "is_active": engine.phase == Phase.PLAYER_TURN and i == engine.current_player_index,
                 "is_owner": viewer_is_self,
                 "ready": engine.player_ready[i],
-
-                # [M5] player insurance
-                "insurance_bet": engine.insurance_bets[i],
-                "insurance_decided": engine.insurance_decided[i],
+                "insurance_bet": engine.insurance_bets[i] if hasattr(engine, "insurance_bets") else 0,
+                "insurance_decided": engine.insurance_decided[i] if hasattr(engine, "insurance_decided") else False,
             }
         )
 
@@ -221,17 +219,11 @@ def get_view_state_for_player(engine: GameEngine, viewer_index: int, table_code:
         "players": players_state,
         "viewer_index": viewer_index,
         "viewer_name": engine.player_names[viewer_index],
-
-        # [M5] viewer: insurance information
-        "insurance": {
-            "offered": engine.phase == Phase.INSURANCE,
-            "amount": engine.player_bets[viewer_index][0] // 2 if engine.phase == Phase.INSURANCE else 0,
-            "decided": engine.insurance_decided[viewer_index] if engine.phase == Phase.INSURANCE else False,
-            "taken": engine.insurance_bets[viewer_index] > 0 if engine.phase in (Phase.INSURANCE, Phase.ROUND_OVER) else False,
-        },
-
         "buttons": {
-            "start_round": engine.phase in (Phase.WAITING, Phase.ROUND_OVER),
+            "start_round": (
+                engine.phase in (Phase.WAITING, Phase.ROUND_OVER)
+                and engine.all_players_ready()
+            ),
             "deal": engine.phase == Phase.BETTING and engine.all_bets_confirmed(),
             "hit": viewer_index == engine.current_player_index and engine.can_hit(),
             "stand": viewer_index == engine.current_player_index and engine.can_stand(),
@@ -239,9 +231,15 @@ def get_view_state_for_player(engine: GameEngine, viewer_index: int, table_code:
             "split": viewer_index == engine.current_player_index and engine.can_split(),
             "surrender": viewer_index == engine.current_player_index and engine.can_surrender(),
             "confirm_bet": engine.phase == Phase.BETTING and not engine.bet_confirmed[viewer_index],
-
-            # [M5] insurance
-            "take_insurance": engine.can_take_insurance(viewer_index),
-            "skip_insurance": engine.phase == Phase.INSURANCE and not engine.insurance_decided[viewer_index],
+            "take_insurance": hasattr(engine, "can_take_insurance") and engine.can_take_insurance(viewer_index),
+            "skip_insurance": engine.phase == Phase.INSURANCE and (
+                not hasattr(engine, "insurance_decided") or not engine.insurance_decided[viewer_index]
+            ),
+        },
+        "insurance": {
+            "offered": engine.phase == Phase.INSURANCE,
+            "amount": engine.player_bets[viewer_index][0] // 2 if engine.phase == Phase.INSURANCE else 0,
+            "decided": engine.insurance_decided[viewer_index] if hasattr(engine, "insurance_decided") and engine.phase == Phase.INSURANCE else False,
+            "taken": engine.insurance_bets[viewer_index] > 0 if hasattr(engine, "insurance_bets") and engine.phase in (Phase.INSURANCE, Phase.ROUND_OVER) else False,
         },
     }
